@@ -1,0 +1,12 @@
+# configs
+
+.clang-format
+compile_flags.txt
+
+# executable
+
+ft_ping
+
+# obj
+
+obj/
