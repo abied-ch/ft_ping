@@ -13,6 +13,8 @@ CC = cc
 
 CFLAGS = -Wall -Wextra -Werror -Iinc -g 
 
+LDFLAGS = -lm
+
 RM = rm -rf
 
 all: $(OBJ_DIR) $(NAME)
