@@ -17,13 +17,13 @@
 #include <unistd.h>
 
 #define MAX_PINGS 1024
+#define PAYLOAD_SIZE 56
 double rtts[MAX_PINGS];
 
 unsigned short checksum(void *buffer, int len) {
-    unsigned short *buf = buffer;  // convert the buffer into 16-bit chunks
+    unsigned short *buf = buffer;
     unsigned int    sum = 0;
 
-    // iterate over buffer 2 bytes at a time
     for (sum = 0; len > 1; len -= 2) {
         sum += *buf++;
     }
@@ -31,15 +31,9 @@ unsigned short checksum(void *buffer, int len) {
         sum += *(unsigned char *)buf;
     }
 
-    // complement sum -> carry is added back to the lower 16 bits of the result
-    // (sum & 0xFFFF) represents the lower 16 bits of `sum`
-    // (sum >> 16) shifts the upper 16 bits to the lower 16 bits
     sum = (sum >> 16) + (sum & 0xFFFF);
-
-    // add any overflow from previous addition to the sum
     sum += (sum >> 16);
 
-    // invert all bits from the sum
     return ~sum;
 }
 
@@ -63,18 +57,16 @@ struct icmp_h {
     u_int16_t seq;
 };
 
-struct icmp_h  icmp_header = {0};
 struct stats   stats = {0};
 struct timeval start_time;
 
-void init_icmp_header() {
-    icmp_header.type = ICMP_ECHO;
-    icmp_header.id = getpid();
-    icmp_header.seq = 1;
-    icmp_header.cksum = checksum(&icmp_header, sizeof(icmp_header));
+void init_icmp_header(struct icmp_h *icmp_header) {
+    icmp_header->type = ICMP_ECHO;
+    icmp_header->id = getpid();
+    icmp_header->seq = 1;
 }
 
-#define SIGINT_MSG "\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% packet lossm time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n"
+#define SIGINT_MSG "\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n"
 
 void sigint(int sig) {
     if (sig != SIGINT) {
@@ -90,20 +82,29 @@ void sigint(int sig) {
     exit(EXIT_SUCCESS);
 }
 
+#define USLEEP_TIME 500000
+
 int main(int ac, char **av) {
+    unsigned int interval = 1000000;
     signal(SIGINT, sigint);
     if (ac < 2) {
         fprintf(stderr, "ft_ping: usage error: Destination address required\n");
         return EXIT_FAILURE;
     }
-
-    init_icmp_header();
-
+    char name[100] = {0};
+    gethostname(name, sizeof(name));
+    struct hostent *localhost_pub = gethostbyname(name);
+    printf("%s\n", localhost_pub->h_addr_list[0]);
+    printf("hostname: %s\n", name);
+    if (!strncmp(av[1], "localhost", 9) || !strncmp(av[1], "127.0.0.1", 9) || !strncmp(name, av[1], strlen(name))) {
+        interval /= 2;
+    }
     stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (stats.sockfd < 0) {
         perror("socket");
         return EXIT_FAILURE;
     }
+
     struct sockaddr_in send_addr;
     memset(&send_addr, 0, sizeof(send_addr));
     send_addr.sin_family = AF_INET;
@@ -121,23 +122,33 @@ int main(int ac, char **av) {
     socklen_t          addr_len = sizeof(recv_addr);
     gettimeofday(&start_time, NULL);
     stats.start_time = start_time;
-    printf("PING %s %zu data bytes\n", av[1], sizeof(struct icmp_h));
+    printf("PING %s %zu data bytes\n", av[1], sizeof(struct icmp_h) + PAYLOAD_SIZE);
     stats.rtt_min = INFINITY;
     stats.rtt_max = 0.0;
     stats.rtt_avg = 0.0;
+
+    char           packet[sizeof(struct icmp_h) + PAYLOAD_SIZE];
+    struct icmp_h *icmp_header = (struct icmp_h *)packet;
+    init_icmp_header(icmp_header);
+    memset(packet + sizeof(struct icmp_h), 0x42, PAYLOAD_SIZE);
+    icmp_header->cksum = 0;
+    icmp_header->cksum = checksum(packet, sizeof(packet));
 
     for (int count = 1; count; count++) {
         struct timeval trip_begin, trip_end;
         gettimeofday(&trip_begin, NULL);
 
-        if (sendto(stats.sockfd, &icmp_header, sizeof(icmp_header), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)) <= 0) {
+        icmp_header->seq = count;
+        icmp_header->cksum = 0;
+        icmp_header->cksum = checksum(packet, sizeof(packet));
+
+        if (sendto(stats.sockfd, packet, sizeof(packet), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)) <= 0) {
             perror("sendto");
             return EXIT_FAILURE;
         }
 
-        stats.transmitted++;
-        ssize_t bytes_received = recvfrom(stats.sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&recv_addr, &addr_len);
-        if (bytes_received <= 0) {
+        ssize_t recv_len = recvfrom(stats.sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&recv_addr, &addr_len);
+        if (recv_len <= 0) {
             perror("recvfrom");
             continue;
         }
@@ -148,10 +159,10 @@ int main(int ac, char **av) {
         struct iphdr  *ip = (struct iphdr *)buffer;
         struct icmp_h *icmp = (struct icmp_h *)(buffer + (ip->ihl << 2));
 
-        if (icmp->type == ICMP_ECHOREPLY && icmp->id == icmp_header.id) {
-            printf("64 bytes from %s icmp_seq=%u ttl=%d time=%.1f ms\n", av[1], stats.transmitted, ip->ttl, ttl_ms);
+        if (icmp->type == ICMP_ECHOREPLY && icmp->id == icmp_header->id) {
+            printf("64 bytes from %s icmp_seq=%u ttl=%d time=%.3f ms\n", av[1], icmp->seq, ip->ttl, ttl_ms);
 
-            if (count < MAX_PINGS) rtts[count++] = ttl_ms;
+            if (count < MAX_PINGS) rtts[count - 1] = ttl_ms;
 
             stats.rtt_min = fmin(stats.rtt_min, ttl_ms);
             stats.rtt_max = fmax(stats.rtt_max, ttl_ms);
@@ -160,14 +171,15 @@ int main(int ac, char **av) {
             stats.rtt_avg = ((stats.rtt_avg * (stats.received - 1)) + ttl_ms) / stats.received;
 
             double sum_deviation = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (unsigned int i = 0; i < stats.received; i++) {
                 sum_deviation += fabs(rtts[i] - stats.rtt_avg);
             }
-            stats.rtt_mdev = sum_deviation / (double)count;
+            stats.rtt_mdev = sum_deviation / stats.received;
         }
 
-        sleep(1);
+        usleep(interval);
     }
+
     close(stats.sockfd);
     return 0;
 }
