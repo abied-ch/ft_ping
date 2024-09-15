@@ -8,6 +8,10 @@
 
 #define PING_INTERVAL 1000000
 #define HELP "\nUsage:\n./ft_ping [OPTIONS] <destination>\n\nOptions:\n\t-v: verbose\n\t-h: help\n"
+#define SIGINT_MSG                                                                                                                                             \
+    "\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% "                                                                                 \
+    "packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n"
+#define USAGE_ERROR "ft_ping: usage error: Destination address required\n"
 struct stats {
     unsigned int   transmitted;
     unsigned int   received;

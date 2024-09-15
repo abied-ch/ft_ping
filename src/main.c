@@ -44,10 +44,6 @@ size_t ft_strlen(const char* s) {
     return len;
 }
 
-#define SIGINT_MSG                                                                                                                                             \
-    "\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% "                                                                                 \
-    "packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n"
-
 void sigint(int sig) {
     if (sig != SIGINT) {
         return;
@@ -101,7 +97,7 @@ int help() {
 int main(int ac, char** av) {
     int res = parse_args(ac, ++av);
     if (res == EXIT_FAILURE) {
-        fprintf(stderr, "ft_ping: usage error: Destination address required\n");
+        fprintf(stderr, USAGE_ERROR);
         return res;
     }
 
