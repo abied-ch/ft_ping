@@ -6,6 +6,7 @@ SRC_DIR = src/
 
 
 SRCS = 	${SRC_DIR}main.c \
+		${SRC_DIR}checksum.c \
 
 OBJS = $(patsubst $(SRC_DIR)%.c, $(OBJ_DIR)/%.o, $(SRCS))
 
