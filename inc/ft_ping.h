@@ -19,7 +19,7 @@ struct stats {
     double         rtt_avg;
     double         rtt_max;
     double         rtt_mdev;
-    char*          dest_host;
+    char           dest_host[256];
     int            sockfd;
     struct timeval start_time;
 };

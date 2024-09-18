@@ -3,9 +3,11 @@
 #include <asm-generic/socket.h>
 #include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
+#include <errno.h>
 #include <limits.h>
 #include <math.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <signal.h>
@@ -32,18 +34,6 @@ void init_icmp_header(struct icmp_h* icmp_header) {
     icmp_header->seq  = 1;
 }
 
-// SAFETY:
-// It is the caller's responsibility to ensure that `s` is
-// pointing to a valid, NULL-terminated string.
-size_t ft_strlen(const char* s) {
-    size_t len = 0;
-
-    while (s[len]) {
-        ++len;
-    }
-    return len;
-}
-
 void sigint(int sig) {
     if (sig != SIGINT) {
         return;
@@ -62,31 +52,35 @@ void sigint(int sig) {
 }
 
 int parse_args(int ac, char** av) {
-    if (ac < 2) {
-        return EXIT_FAILURE;
-    }
-    for (int i = 0; av[i]; ++i) {
-        switch (av[i][0]) {
-        case '-':
-            if (ft_strlen(av[i]) == 1) {
-                args.dest = av[i];
-                break;
-            } else if (av[i][1] == 'v') {
+    int i = 0;
+
+    while (++i < ac) {
+        if (av[i][0] == '-') {
+            if (!strcmp(av[i], "-v")) {
                 args.verbose = true;
-                break;
-            } else if (av[i][1] == 'h') {
+            } else if (!strcmp(av[i], "-h") || !strcmp(av[i], "-?")) {
                 args.help = true;
-                break;
+                return EXIT_SUCCESS;
             } else {
+                fprintf(stderr, "Unknown option: %s\n", av[i]);
                 args.help = true;
                 return ARG_ERR;
             }
-        default:
-            args.dest = av[i];
-            break;
+        } else {
+            if (args.dest == NULL) {
+                args.dest = av[i];
+            } else {
+                fprintf(stderr, "Unexpected argument: %s\n", av[i]);
+                args.help = true;
+                return ARG_ERR;
+            }
         }
     }
-    return args.dest == NULL && !args.help;
+    if (!args.dest && !args.help) {
+        fprintf(stderr, "Destination address required\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
 
 int help() {
@@ -95,7 +89,7 @@ int help() {
 }
 
 int main(int ac, char** av) {
-    int res = parse_args(ac, ++av);
+    int res = parse_args(ac, av);
     if (res == EXIT_FAILURE) {
         fprintf(stderr, USAGE_ERROR);
         return res;
@@ -121,6 +115,9 @@ int main(int ac, char** av) {
     }
     send_addr.sin_addr = *(struct in_addr*)host->h_addr_list[0];
 
+    strncpy(stats.dest_host, args.dest, sizeof(stats.dest_host));
+    stats.dest_host[sizeof(stats.dest_host) - 1] = '\0';
+
     char               buffer[1024];
     struct sockaddr_in recv_addr;
     socklen_t          addr_len = sizeof(recv_addr);
@@ -138,13 +135,16 @@ int main(int ac, char** av) {
     icmp_header->cksum = 0;
     icmp_header->cksum = checksum(packet, sizeof(packet));
 
+    struct timeval timeout;
+    timeout.tv_sec  = 1;
+    timeout.tv_usec = 0;
+    if (setsockopt(stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("setsockopt");
+        return EXIT_FAILURE;
+    }
+    int failed_attempts = 0;
     signal(SIGINT, sigint);
     for (int count = 1; count; count++) {
-        int failed_attempts = 0;
-
-        struct timeval trip_begin, trip_end;
-        gettimeofday(&trip_begin, NULL);
-
         icmp_header->seq   = count;
         icmp_header->cksum = 0;
         icmp_header->cksum = checksum(packet, sizeof(packet));
@@ -158,54 +158,74 @@ int main(int ac, char** av) {
             }
             continue;
         }
-        stats.transmitted += 1;
 
-        ssize_t recv_len = recvfrom(stats.sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&recv_addr, &addr_len);
-        if (recv_len <= 0) {
-            perror("recvfrom");
+        stats.transmitted++;
+
+        struct timeval trip_begin, trip_end;
+        gettimeofday(&trip_begin, NULL);
+
+        bool received_reply = false;
+        while (true) {
+            ssize_t recv_len = recvfrom(stats.sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&recv_addr, &addr_len);
+            if (recv_len <= 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    if (args.verbose) {
+                        printf("Request timeout for icmp_sec %d\n", count);
+                    }
+                    break;
+                } else {
+                    perror("recvfrom");
+                    break;
+                }
+            }
+            struct iphdr* ip            = (struct iphdr*)buffer;
+            size_t        ip_header_len = ip->ihl << 2;
+            if (recv_len < (ssize_t)(ip_header_len + sizeof(struct icmp_h))) {
+                fprintf(stderr, "Error: Received packet is too short to be valid\n");
+                continue;
+            }
+            struct icmp_h* icmp = (struct icmp_h*)(buffer + ip_header_len);
+
+            if (icmp->type == ICMP_ECHOREPLY && icmp->id == icmp_header->id && icmp->seq == count) {
+                gettimeofday(&trip_end, NULL);
+                double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
+
+                char ip_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(recv_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
+                printf("64 bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", ip_str, icmp->seq, ip->ttl, ttl_ms);
+
+                if (stats.received < MAX_PINGS) {
+                    rtts[stats.received] = ttl_ms;
+                }
+
+                stats.received++;
+                stats.rtt_min = fmin(stats.rtt_min, ttl_ms);
+                stats.rtt_max = fmax(stats.rtt_max, ttl_ms);
+                stats.rtt_avg = ((stats.rtt_avg * (stats.received - 1)) + ttl_ms) / stats.received;
+
+                double sum_deviation = 0.0;
+                for (size_t i = 0; i < stats.received; ++i) {
+                    sum_deviation += fabs(rtts[i] - stats.rtt_avg);
+                }
+                stats.rtt_mdev = sum_deviation / stats.received;
+
+                received_reply = true;
+                break;
+            } else {
+                if (args.verbose) {
+                    printf("Received ICMP type %d code %d from %s (unexpected sequence number)\n", icmp->type, icmp->code, inet_ntoa(recv_addr.sin_addr));
+                }
+            }
+        }
+        if (!received_reply) {
             failed_attempts++;
-            continue;
-        }
-        failed_attempts = 0;
-        struct timeval timeout;
-        timeout.tv_sec  = 1;
-        timeout.tv_usec = 0;
-        if (setsockopt(stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-            perror("setsockopt");
-            return EXIT_FAILURE;
-        }
-
-        gettimeofday(&trip_end, NULL);
-        double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
-
-        struct iphdr* ip            = (struct iphdr*)buffer;
-        size_t        ip_header_len = ip->ihl << 2;
-        if (recv_len < (ssize_t)(ip_header_len + sizeof(struct icmp_h))) {
-            fprintf(stderr, "error: received packet is too short to be valid");
-            continue;
-        }
-        struct icmp_h* icmp = (struct icmp_h*)(buffer + (ip->ihl << 2));
-
-        if (icmp->type == ICMP_ECHOREPLY && icmp->id == icmp_header->id) {
-            printf("64 bytes from %s icmp_seq=%u ttl=%d time=%.3f ms\n", av[1], icmp->seq, ip->ttl, ttl_ms);
-
-            if (count < MAX_PINGS) {
-                rtts[count - 1] = ttl_ms;
+            if (failed_attempts >= 5) {
+                fprintf(stderr, "Too many consecutive failures, exiting.\n");
+                break;
             }
-
-            stats.rtt_min = fmin(stats.rtt_min, ttl_ms);
-            stats.rtt_max = fmax(stats.rtt_max, ttl_ms);
-
-            stats.received++;
-            stats.rtt_avg = ((stats.rtt_avg * (stats.received - 1)) + ttl_ms) / stats.received;
-
-            double sum_deviation = 0.0;
-            for (unsigned int i = 0; i < stats.received; i++) {
-                sum_deviation += fabs(rtts[i] - stats.rtt_avg);
-            }
-            stats.rtt_mdev = sum_deviation / stats.received;
+        } else {
+            failed_attempts = 0;
         }
-
         usleep(PING_INTERVAL);
     }
 
