@@ -29,18 +29,18 @@ Stats          stats = {0};
 struct timeval start_time;
 
 void init_icmp_header(struct icmp* icmp_header, int seq, char* packet, int packet_len) {
-    icmp_header->icmp_type  = ICMP_ECHO;
-    icmp_header->icmp_id    = getpid();
-    icmp_header->icmp_seq   = seq;
-    
+    icmp_header->icmp_type = ICMP_ECHO;
+    icmp_header->icmp_id   = getpid();
+    icmp_header->icmp_seq  = seq;
+
     /*
     To future self: before thinking `this line is useless, I am overwriting the checksum
     anyway so why reset it beforehand`:
 
     `icmp_header` and `packet` point to the same memory address, they are just _cast to different types_.
     Removing this line will result in the checksum not matching and all packets (except for the first
-    one) will be lost!
-    */ 
+    one) being lost!
+    */
     icmp_header->icmp_cksum = 0;
     icmp_header->icmp_cksum = checksum(packet, packet_len);
 }
@@ -99,33 +99,51 @@ int help() {
     return 2;
 }
 
+int get_send_addr(Args args, struct sockaddr_in* send_addr) {
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_RAW;
+
+    int err = getaddrinfo(args.dest, NULL, &hints, &res);
+    if (err != EXIT_SUCCESS) {
+        if (args.verbose) {
+            printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", stats.sockfd);
+        }
+        fprintf(stderr, "ft_ping: %s: %s\n", args.dest, gai_strerror(err));
+        return EXIT_FAILURE;
+    }
+    struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
+    send_addr->sin_family    = addr->sin_family;
+    send_addr->sin_addr      = addr->sin_addr;
+    freeaddrinfo(res);
+    return EXIT_SUCCESS;
+}
+
 int main(int ac, char** av) {
+    stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    if (stats.sockfd < 0) {
+        perror("socket");
+        return EXIT_FAILURE;
+    }
     Args args = {0};
-    int  res  = parse_args(ac, av, &args);
-    if (res == EXIT_FAILURE) {
-        fprintf(stderr, USAGE_ERROR);
-        return res;
+    if (parse_args(ac, av, &args) == EXIT_FAILURE) {
+        return EXIT_FAILURE;
     }
 
     if (args.help) {
         return help();
     }
 
-    stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-    if (stats.sockfd < 0) {
-        perror("socket");
-        return EXIT_FAILURE;
-    }
-
     struct sockaddr_in send_addr = {0};
-    send_addr.sin_family         = AF_INET;
-
-    struct hostent* host = gethostbyname(args.dest);
-    if (host == NULL) {
-        fprintf(stderr, "ft_ping: %s: Name or service not known\n", av[1]);
+    if (get_send_addr(args, &send_addr) != 0) {
         return EXIT_FAILURE;
     }
-    send_addr.sin_addr = *(struct in_addr*)host->h_addr_list[0];
+
+    if (args.verbose) {
+        printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", stats.sockfd);
+        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args.dest);
+    }
 
     strncpy(stats.dest_host, args.dest, sizeof(stats.dest_host));
     stats.dest_host[sizeof(stats.dest_host) - 1] = '\0';
@@ -200,7 +218,11 @@ int main(int ac, char** av) {
 
                 char ip_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(recv_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-                printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, ip->ttl, ttl_ms);
+                if (args.verbose) {
+                    printf("%d bytes from %s: icmp_seq=%u ident=%d ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, icmp->icmp_id, ip->ttl, ttl_ms);
+                } else {
+                    printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, ip->ttl, ttl_ms);
+                }
 
                 if (stats.received < MAX_PINGS) {
                     rtts[stats.received] = ttl_ms;
