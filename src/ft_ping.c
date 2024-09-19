@@ -23,9 +23,34 @@
 Stats stats = {0};
 
 /*
+* Computes IP checksum (16 bit one's complement sum), ensuring packet integrity before accepting.
+* .
+* This ensures that the checksum result will not exceed the size of a 16 bit integer by
+* wrapping around carry instead of making the number outgrow its bounds.
+* .
+* https://web.archive.org/web/20020916085726/http://www.netfor2.com/checksum.html
+*/
+unsigned short checksum(void* buffer, int len) {
+    unsigned short* buf = buffer;
+    unsigned int sum = 0;
+
+    for (sum = 0; len > 1; len -= 2) {
+        sum += *buf++;
+    }
+    if (len == 1) {
+        sum += *(unsigned char*)buf;
+    }
+
+    sum = (sum >> 16) + (sum & 0xFFFF);
+    sum += (sum >> 16);
+
+    return ~sum;
+}
+
+/*
  * Initializes icmp header at each ping iteration.
  */
-void init_icmp_header(struct icmp* icmp_header, int seq, char* packet, int packet_len) {
+void init_icmp_header(struct icmp* icmp_header, const int seq, char* packet, const int packet_len) {
     icmp_header->icmp_type = ICMP_ECHO;
     icmp_header->icmp_id   = getpid();
     icmp_header->icmp_seq  = seq;
@@ -48,7 +73,7 @@ void init_icmp_header(struct icmp* icmp_header, int seq, char* packet, int packe
  * In the case of `ping`, this means calculating the total ping time (from first ping to
  * signal receive time) and printing the ping statistics before exiting.
  */
-void sigint(int sig) {
+void sigint(const int sig) {
     if (sig != SIGINT) {
         return;
     }
@@ -77,7 +102,7 @@ Parses the arguments from the command line.
 * .
 * Returns `0` on success, `1` on missing destination address, `2` on unexpected input.
 */
-int parse_args(int ac, char** av, Args* args) {
+int parse_args(const int ac, char** av, Args* args) {
     int i = 0;
 
     while (++i < ac) {
@@ -128,7 +153,7 @@ int help() {
  * .
  * Returns `0` on success, `1` on failure.
  */
-int get_send_addr(Args args, struct sockaddr_in* send_addr) {
+int get_send_addr(const Args args, struct sockaddr_in* send_addr) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family   = AF_INET;
@@ -157,7 +182,7 @@ int get_send_addr(Args args, struct sockaddr_in* send_addr) {
  * `rtt_avg` (average round trip time)
  * `rtt_mdev` (mean round trip time deviation)
  */
-void update_stats(double ttl_ms) {
+void update_stats(const double ttl_ms) {
     stats.received++;
     stats.rtt_min = fmin(stats.rtt_min, ttl_ms);
     stats.rtt_max = fmax(stats.rtt_max, ttl_ms);
@@ -217,11 +242,19 @@ int main(int ac, char** av) {
     stats.rtt_max = 0.0;
     stats.rtt_avg = 0.0;
 
+    /*
+    * Fill the packet with easily recognizable default value. Apparently this helps with debugging 
+    * fragmenation/reassembly issues in bigger networks, I'll give it a try and come back here to change this if
+    * it turns out to be bullshit.
+    */
     char         packet[sizeof(struct icmp) + PAYLOAD_SIZE] = {0};
     struct icmp* icmp_header                                = (struct icmp*)packet;
     memset(packet + sizeof(struct icmp), 0x42, PAYLOAD_SIZE);
     init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
+    /*
+    * Sets the timeout option to our socket so we don't hang for 2 hours.
+    */
     struct timeval timeout;
     timeout.tv_sec  = 1;
     timeout.tv_usec = 0;
@@ -229,8 +262,10 @@ int main(int ac, char** av) {
         perror("setsockopt");
         return EXIT_FAILURE;
     }
+
     int failed_attempts = 0;
     signal(SIGINT, sigint);
+
     for (int count = 1; count; count++) {
         init_icmp_header(icmp_header, count, packet, sizeof(packet));
 
@@ -263,14 +298,27 @@ int main(int ac, char** av) {
                     break;
                 }
             }
+
+            /*
+            * The Internet Header Length (IHL) field in the IP header is represented in 32-bit
+            * words. Since 32 / 8 == 4, each word in this contet is 4 bytes, meaning that we 
+            * need to multiply the IHL by 4 to get the actual header length in bytes.
+            */
             struct iphdr* ip            = (struct iphdr*)buffer;
             size_t        ip_header_len = ip->ihl << 2;
             if (recv_len < (ssize_t)(ip_header_len + sizeof(struct icmp))) {
                 fprintf(stderr, "Error: Received packet is too short to be valid\n");
                 continue;
             }
+
+            /*
+            * Skip the header part and store the rest icmp struct.
+            */
             struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
 
+            /*
+            * If any of these conditions evaluates to false, it means we received a packet which is not relevant to us.
+            */
             if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
                 gettimeofday(&trip_end, NULL);
                 double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
@@ -291,6 +339,11 @@ int main(int ac, char** av) {
                 break;
             }
         }
+
+        /*
+        * Keep track of missing replies in order to early stop in case of too many failures 
+        * (otherwise we would be spinning 1024 times before stopping).
+        */
         if (!received_reply) {
             failed_attempts++;
             if (failed_attempts >= 5) {
@@ -300,6 +353,7 @@ int main(int ac, char** av) {
         } else {
             failed_attempts = 0;
         }
+
         usleep(PING_INTERVAL);
     }
 

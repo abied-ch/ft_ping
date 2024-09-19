@@ -42,6 +42,4 @@ typedef enum {
     ARG_ERR,
 } Ret;
 
-unsigned short checksum(void* buffer, int len);
-
 #endif
