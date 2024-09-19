@@ -20,22 +20,19 @@
 #include <time.h>
 #include <unistd.h>
 
-#define PACKET_SIZE 64
-#define PAYLOAD_SIZE 56
-#define MAX_PINGS 1024
-double rtts[MAX_PINGS];
+Stats stats = {0};
 
-Stats          stats = {0};
-struct timeval start_time;
-
+/*
+ * Initializes icmp header at each ping iteration.
+ */
 void init_icmp_header(struct icmp* icmp_header, int seq, char* packet, int packet_len) {
     icmp_header->icmp_type = ICMP_ECHO;
     icmp_header->icmp_id   = getpid();
     icmp_header->icmp_seq  = seq;
 
     /*
-    To future self: before thinking `this line is useless, I am overwriting the checksum
-    anyway so why reset it beforehand`:
+    To future self: before thinking `thiS lInE is uSelESs, I aM ovERwriTing the chECksUm
+    sO wHy reSeT it BeFoReHAnd`:
 
     `icmp_header` and `packet` point to the same memory address, they are just _cast to different types_.
     Removing this line will result in the checksum not matching and all packets (except for the first
@@ -45,6 +42,12 @@ void init_icmp_header(struct icmp* icmp_header, int seq, char* packet, int packe
     icmp_header->icmp_cksum = checksum(packet, packet_len);
 }
 
+/*
+ * Handles `SIGINT`.
+ * .
+ * In the case of `ping`, this means calculating the total ping time (from first ping to
+ * signal receive time) and printing the ping statistics before exiting.
+ */
 void sigint(int sig) {
     if (sig != SIGINT) {
         return;
@@ -62,6 +65,18 @@ void sigint(int sig) {
     exit(EXIT_SUCCESS);
 }
 
+/*
+Parses the arguments from the command line.
+* .
+* Supported options:
+*   - `-v`: verbose
+*   - `-(h|?)`: help
+* .
+* Anything without leading `-` is parsed as destination address.
+* Expects exactly `1` destination address.
+* .
+* Returns `0` on success, `1` on missing destination address, `2` on unexpected input.
+*/
 int parse_args(int ac, char** av, Args* args) {
     int i = 0;
 
@@ -94,11 +109,25 @@ int parse_args(int ac, char** av, Args* args) {
     return EXIT_SUCCESS;
 }
 
+/*
+ * Prints help message.
+ * .
+ * Returns `2`
+ */
 int help() {
     write(1, HELP, sizeof(HELP));
     return 2;
 }
 
+/*
+ * Fills `send_addr` with the destination host's metadata from `getaddrinfo`.
+ * .
+ * Notes:
+ * - Uses raw sockets, needs sudo access
+ * - Assumes IPv4, as IPv6 is not required for this projects
+ * .
+ * Returns `0` on success, `1` on failure.
+ */
 int get_send_addr(Args args, struct sockaddr_in* send_addr) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
@@ -120,12 +149,41 @@ int get_send_addr(Args args, struct sockaddr_in* send_addr) {
     return EXIT_SUCCESS;
 }
 
+/*
+ * Updates statistics to be printed on `SIGINT`:
+ * .
+ * `rtt_min` (minimum round trip time)
+ * `rtt_max` (maximum round trip time)
+ * `rtt_avg` (average round trip time)
+ * `rtt_mdev` (mean round trip time deviation)
+ */
+void update_stats(double ttl_ms) {
+    stats.received++;
+    stats.rtt_min = fmin(stats.rtt_min, ttl_ms);
+    stats.rtt_max = fmax(stats.rtt_max, ttl_ms);
+    stats.rtt_avg = ((stats.rtt_avg * (stats.received - 1)) + ttl_ms) / stats.received;
+
+    double sum_deviation = 0.0;
+    /*
+    MD = \frac{1}{N} \sum\limits_{i=1}^{N} \left| RTT_i - \overline{RTT} \right|
+    Where:
+    - MD = mean deviation
+    - RTT = round trip times vector
+    - N = number of requests
+    */
+    for (size_t i = 0; i < stats.received; ++i) {
+        sum_deviation += fabs(stats.rtts[i] - stats.rtt_avg);
+    }
+    stats.rtt_mdev = sum_deviation / stats.received;
+}
+
 int main(int ac, char** av) {
     stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (stats.sockfd < 0) {
         perror("socket");
         return EXIT_FAILURE;
     }
+
     Args args = {0};
     if (parse_args(ac, av, &args) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -151,9 +209,10 @@ int main(int ac, char** av) {
     char               buffer[1024];
     struct sockaddr_in recv_addr;
     socklen_t          addr_len = sizeof(recv_addr);
-    gettimeofday(&start_time, NULL);
-    stats.start_time = start_time;
-    printf("PING %s %zu data bytes\n", args.dest, sizeof(struct icmp) + PAYLOAD_SIZE);
+    char               ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &(send_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
+    gettimeofday(&stats.start_time, NULL);
+    printf("PING %s (%s) %d(%zu) data bytes\n", args.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
     stats.rtt_min = INFINITY;
     stats.rtt_max = 0.0;
     stats.rtt_avg = 0.0;
@@ -177,6 +236,7 @@ int main(int ac, char** av) {
 
         if (sendto(stats.sockfd, packet, sizeof(packet), 0, (struct sockaddr*)&send_addr, sizeof(send_addr)) <= 0) {
             perror("sendto");
+
             failed_attempts++;
             if (failed_attempts >= 5) {
                 fprintf(stderr, "too many consecutive failures, exiting.");
@@ -184,7 +244,6 @@ int main(int ac, char** av) {
             }
             continue;
         }
-
         stats.transmitted++;
 
         struct timeval trip_begin, trip_end;
@@ -216,8 +275,6 @@ int main(int ac, char** av) {
                 gettimeofday(&trip_end, NULL);
                 double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 
-                char ip_str[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &(recv_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
                 if (args.verbose) {
                     printf("%d bytes from %s: icmp_seq=%u ident=%d ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, icmp->icmp_id, ip->ttl, ttl_ms);
                 } else {
@@ -225,19 +282,10 @@ int main(int ac, char** av) {
                 }
 
                 if (stats.received < MAX_PINGS) {
-                    rtts[stats.received] = ttl_ms;
+                    stats.rtts[stats.received] = ttl_ms;
                 }
 
-                stats.received++;
-                stats.rtt_min = fmin(stats.rtt_min, ttl_ms);
-                stats.rtt_max = fmax(stats.rtt_max, ttl_ms);
-                stats.rtt_avg = ((stats.rtt_avg * (stats.received - 1)) + ttl_ms) / stats.received;
-
-                double sum_deviation = 0.0;
-                for (size_t i = 0; i < stats.received; ++i) {
-                    sum_deviation += fabs(rtts[i] - stats.rtt_avg);
-                }
-                stats.rtt_mdev = sum_deviation / stats.received;
+                update_stats(ttl_ms);
 
                 received_reply = true;
                 break;
