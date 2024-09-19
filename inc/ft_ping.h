@@ -12,7 +12,8 @@
     "\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% "                                                                                 \
     "packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n"
 #define USAGE_ERROR "ft_ping: usage error: Destination address required\n"
-struct stats {
+
+typedef struct {
     unsigned int   transmitted;
     unsigned int   received;
     double         rtt_min;
@@ -22,27 +23,19 @@ struct stats {
     char           dest_host[256];
     int            sockfd;
     struct timeval start_time;
-};
+} Stats;
 
-struct icmp_h {
-    u_int8_t  type;
-    u_int8_t  code;
-    u_int16_t cksum;
-    u_int16_t id;
-    u_int16_t seq;
-};
-
-struct args {
+typedef struct {
     bool  verbose;
     bool  help;
     char* dest;
-};
+} Args;
 
-enum ret {
+typedef enum {
     OK,
     FAILURE,
     ARG_ERR,
-};
+} Ret;
 
 unsigned short checksum(void* buffer, int len);
 

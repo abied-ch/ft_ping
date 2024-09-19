@@ -20,18 +20,29 @@
 #include <time.h>
 #include <unistd.h>
 
-#define MAX_PINGS 1024
+#define PACKET_SIZE 64
 #define PAYLOAD_SIZE 56
+#define MAX_PINGS 1024
 double rtts[MAX_PINGS];
 
-struct stats   stats = {0};
+Stats          stats = {0};
 struct timeval start_time;
-struct args    args = {0};
 
-void init_icmp_header(struct icmp_h* icmp_header) {
-    icmp_header->type = ICMP_ECHO;
-    icmp_header->id   = getpid();
-    icmp_header->seq  = 1;
+void init_icmp_header(struct icmp* icmp_header, int seq, char* packet, int packet_len) {
+    icmp_header->icmp_type  = ICMP_ECHO;
+    icmp_header->icmp_id    = getpid();
+    icmp_header->icmp_seq   = seq;
+    
+    /*
+    To future self: before thinking `this line is useless, I am overwriting the checksum
+    anyway so why reset it beforehand`:
+
+    `icmp_header` and `packet` point to the same memory address, they are just _cast to different types_.
+    Removing this line will result in the checksum not matching and all packets (except for the first
+    one) will be lost!
+    */ 
+    icmp_header->icmp_cksum = 0;
+    icmp_header->icmp_cksum = checksum(packet, packet_len);
 }
 
 void sigint(int sig) {
@@ -51,32 +62,32 @@ void sigint(int sig) {
     exit(EXIT_SUCCESS);
 }
 
-int parse_args(int ac, char** av) {
+int parse_args(int ac, char** av, Args* args) {
     int i = 0;
 
     while (++i < ac) {
         if (av[i][0] == '-') {
             if (!strcmp(av[i], "-v")) {
-                args.verbose = true;
+                args->verbose = true;
             } else if (!strcmp(av[i], "-h") || !strcmp(av[i], "-?")) {
-                args.help = true;
+                args->help = true;
                 return EXIT_SUCCESS;
             } else {
                 fprintf(stderr, "Unknown option: %s\n", av[i]);
-                args.help = true;
+                args->help = true;
                 return ARG_ERR;
             }
         } else {
-            if (args.dest == NULL) {
-                args.dest = av[i];
+            if (args->dest == NULL) {
+                args->dest = av[i];
             } else {
                 fprintf(stderr, "Unexpected argument: %s\n", av[i]);
-                args.help = true;
+                args->help = true;
                 return ARG_ERR;
             }
         }
     }
-    if (!args.dest && !args.help) {
+    if (!args->dest && !args->help) {
         fprintf(stderr, "Destination address required\n");
         return EXIT_FAILURE;
     }
@@ -89,7 +100,8 @@ int help() {
 }
 
 int main(int ac, char** av) {
-    int res = parse_args(ac, av);
+    Args args = {0};
+    int  res  = parse_args(ac, av, &args);
     if (res == EXIT_FAILURE) {
         fprintf(stderr, USAGE_ERROR);
         return res;
@@ -123,17 +135,15 @@ int main(int ac, char** av) {
     socklen_t          addr_len = sizeof(recv_addr);
     gettimeofday(&start_time, NULL);
     stats.start_time = start_time;
-    printf("PING %s %zu data bytes\n", args.dest, sizeof(struct icmp_h) + PAYLOAD_SIZE);
+    printf("PING %s %zu data bytes\n", args.dest, sizeof(struct icmp) + PAYLOAD_SIZE);
     stats.rtt_min = INFINITY;
     stats.rtt_max = 0.0;
     stats.rtt_avg = 0.0;
 
-    char           packet[sizeof(struct icmp_h) + PAYLOAD_SIZE] = {0};
-    struct icmp_h* icmp_header                                  = (struct icmp_h*)packet;
-    init_icmp_header(icmp_header);
-    memset(packet + sizeof(struct icmp_h), 0x42, PAYLOAD_SIZE);
-    icmp_header->cksum = 0;
-    icmp_header->cksum = checksum(packet, sizeof(packet));
+    char         packet[sizeof(struct icmp) + PAYLOAD_SIZE] = {0};
+    struct icmp* icmp_header                                = (struct icmp*)packet;
+    memset(packet + sizeof(struct icmp), 0x42, PAYLOAD_SIZE);
+    init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
     struct timeval timeout;
     timeout.tv_sec  = 1;
@@ -145,9 +155,7 @@ int main(int ac, char** av) {
     int failed_attempts = 0;
     signal(SIGINT, sigint);
     for (int count = 1; count; count++) {
-        icmp_header->seq   = count;
-        icmp_header->cksum = 0;
-        icmp_header->cksum = checksum(packet, sizeof(packet));
+        init_icmp_header(icmp_header, count, packet, sizeof(packet));
 
         if (sendto(stats.sockfd, packet, sizeof(packet), 0, (struct sockaddr*)&send_addr, sizeof(send_addr)) <= 0) {
             perror("sendto");
@@ -180,19 +188,19 @@ int main(int ac, char** av) {
             }
             struct iphdr* ip            = (struct iphdr*)buffer;
             size_t        ip_header_len = ip->ihl << 2;
-            if (recv_len < (ssize_t)(ip_header_len + sizeof(struct icmp_h))) {
+            if (recv_len < (ssize_t)(ip_header_len + sizeof(struct icmp))) {
                 fprintf(stderr, "Error: Received packet is too short to be valid\n");
                 continue;
             }
-            struct icmp_h* icmp = (struct icmp_h*)(buffer + ip_header_len);
+            struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
 
-            if (icmp->type == ICMP_ECHOREPLY && icmp->id == icmp_header->id && icmp->seq == count) {
+            if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
                 gettimeofday(&trip_end, NULL);
                 double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 
                 char ip_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(recv_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-                printf("64 bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", ip_str, icmp->seq, ip->ttl, ttl_ms);
+                printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, ip->ttl, ttl_ms);
 
                 if (stats.received < MAX_PINGS) {
                     rtts[stats.received] = ttl_ms;
@@ -211,10 +219,6 @@ int main(int ac, char** av) {
 
                 received_reply = true;
                 break;
-            } else {
-                if (args.verbose) {
-                    printf("Received ICMP type %d code %d from %s (unexpected sequence number)\n", icmp->type, icmp->code, inet_ntoa(recv_addr.sin_addr));
-                }
             }
         }
         if (!received_reply) {
