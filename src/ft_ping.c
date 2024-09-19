@@ -202,6 +202,16 @@ void update_stats(const double ttl_ms) {
     stats.rtt_mdev = sum_deviation / stats.received;
 }
 
+/*
+* Initializes stats struct, I think you figured that out.
+*/
+void init_stats() {
+    stats.rtt_min = INFINITY;
+    stats.rtt_max = 0.0;
+    stats.rtt_avg = 0.0;
+    gettimeofday(&stats.start_time, NULL);
+}
+
 int main(int ac, char** av) {
     stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (stats.sockfd < 0) {
@@ -236,11 +246,8 @@ int main(int ac, char** av) {
     socklen_t          addr_len = sizeof(recv_addr);
     char               ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(send_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-    gettimeofday(&stats.start_time, NULL);
     printf("PING %s (%s) %d(%zu) data bytes\n", args.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
-    stats.rtt_min = INFINITY;
-    stats.rtt_max = 0.0;
-    stats.rtt_avg = 0.0;
+
 
     /*
     * Fill the packet with easily recognizable default value. Apparently this helps with debugging 
@@ -252,6 +259,7 @@ int main(int ac, char** av) {
     memset(packet + sizeof(struct icmp), 0x42, PAYLOAD_SIZE);
     init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
+    init_stats();
     /*
     * Sets the timeout option to our socket so we don't hang for 2 hours.
     */
