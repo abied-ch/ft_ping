@@ -42,4 +42,15 @@ typedef enum {
     ARG_ERR,
 } Ret;
 
+typedef enum {
+    ICMP_SEND_OK,
+    ICMP_SEND_FAILURE,
+    ICMP_SEND_MAX_RETRIES_REACHED,
+} ICMPSendRes;
+
+typedef enum {
+    ICMP_RECV_OK,
+    ICMP_RECV_FAILURE=-1,
+} ICMPRecvRes;
+
 #endif
