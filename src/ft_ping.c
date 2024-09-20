@@ -227,11 +227,11 @@ ICMPSendRes send_icmp_packet(char* packet, size_t packet_size, struct sockaddr_i
     return ICMP_SEND_OK;
 }
 
-ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* recv_addr, socklen_t* addr_len, int count, Args args) {
+ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* recv_addr, socklen_t* addr_len, int count, Args* args) {
     ssize_t recv_len = recvfrom(stats.sockfd, buffer, buffer_size, 0, (struct sockaddr*)recv_addr, addr_len);
     if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            if (args.verbose) {
+            if (args->verbose) {
                 printf("Request timeout for icmp_seq %d\n", count);
             }
         } else {
@@ -239,6 +239,14 @@ ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* r
         }
     }
     return recv_len;
+}
+
+void display_rt_stats(Args* args, char* ip_str, struct icmp* icmp, struct iphdr* ip, double ttl_ms) {
+    if (args->verbose) {
+        printf("%d bytes from %s: icmp_seq=%u ident=%d ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, icmp->icmp_id, ip->ttl, ttl_ms);
+    } else {
+        printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, ip->ttl, ttl_ms);
+    }
 }
 
 int main(int ac, char** av) {
@@ -272,7 +280,7 @@ int main(int ac, char** av) {
 
     char               buffer[1024];
     struct sockaddr_in recv_addr = {0};
-    socklen_t          addr_len = sizeof(recv_addr);
+    socklen_t          addr_len  = sizeof(recv_addr);
     char               ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(send_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
     printf("PING %s (%s) %d(%zu) data bytes\n", args.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
@@ -317,7 +325,11 @@ int main(int ac, char** av) {
 
         bool received_reply = false;
         while (true) {
-            ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer),  &recv_addr, &addr_len, count, args);
+            ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, &args);
+            if (recv_len <= 0) {
+                return EXIT_FAILURE;
+            }
+
             /*
              * The Internet Header Length (IHL) field in the IP header is represented in 32-bit
              * words. Since 32 / 8 == 4, each word in this contet is 4 bytes, meaning that we
@@ -342,11 +354,7 @@ int main(int ac, char** av) {
                 gettimeofday(&trip_end, NULL);
                 double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 
-                if (args.verbose) {
-                    printf("%d bytes from %s: icmp_seq=%u ident=%d ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, icmp->icmp_id, ip->ttl, ttl_ms);
-                } else {
-                    printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, ip->ttl, ttl_ms);
-                }
+                display_rt_stats(&args, ip_str, icmp, ip, ttl_ms);
 
                 if (stats.received < MAX_PINGS) {
                     stats.rtts[stats.received] = ttl_ms;

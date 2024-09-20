@@ -50,7 +50,7 @@ typedef enum {
 
 typedef enum {
     ICMP_RECV_OK,
-    ICMP_RECV_FAILURE=-1,
+    ICMP_RECV_TOO_SHORT=-1,
 } ICMPRecvRes;
 
 #endif
