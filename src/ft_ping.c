@@ -100,7 +100,7 @@ Parses the arguments from the command line.
 * Anything without leading `-` is parsed as destination address.
 * Expects exactly `1` destination address.
 * .
-* Returns `0` on success, `1` on missing destination address, `2` on unexpected input.
+* Returns `0` on success, `-1` on missing destination address, `2` on unexpected input.
 */
 int parse_args(const int ac, char** av, Args* args) {
     int i = 0;
@@ -111,7 +111,7 @@ int parse_args(const int ac, char** av, Args* args) {
                 args->verbose = true;
             } else if (!strcmp(av[i], "-h") || !strcmp(av[i], "-?")) {
                 args->help = true;
-                return EXIT_SUCCESS;
+                return ARG_ERR;
             } else {
                 fprintf(stderr, "Unknown option: %s\n", av[i]);
                 args->help = true;
@@ -129,9 +129,9 @@ int parse_args(const int ac, char** av, Args* args) {
     }
     if (!args->dest && !args->help) {
         fprintf(stderr, "Destination address required\n");
-        return EXIT_FAILURE;
+        return -1;
     }
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 /*
@@ -151,7 +151,7 @@ int help() {
  * - Uses raw sockets, needs sudo access
  * - Assumes IPv4, as IPv6 is not required for this projects
  * .
- * Returns `0` on success, `1` on failure.
+ * Returns `0` on success, `-1` on failure.
  */
 int get_send_addr(const Args args, struct sockaddr_in* send_addr) {
     struct addrinfo hints, *res;
@@ -160,18 +160,18 @@ int get_send_addr(const Args args, struct sockaddr_in* send_addr) {
     hints.ai_socktype = SOCK_RAW;
 
     int err = getaddrinfo(args.dest, NULL, &hints, &res);
-    if (err != EXIT_SUCCESS) {
+    if (err != 0) {
         if (args.verbose) {
             printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", stats.sockfd);
         }
         fprintf(stderr, "ft_ping: %s: %s\n", args.dest, gai_strerror(err));
-        return EXIT_FAILURE;
+        return -1;
     }
     struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
     send_addr->sin_family    = addr->sin_family;
     send_addr->sin_addr      = addr->sin_addr;
     freeaddrinfo(res);
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 /*
@@ -224,7 +224,7 @@ ICMPSendRes send_icmp_packet(char* packet, size_t packet_size, struct sockaddr_i
         return ICMP_SEND_FAILURE;
     }
     stats.transmitted++;
-    return ICMP_SEND_OK;
+    return 0;
 }
 
 ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* recv_addr, socklen_t* addr_len, int count, Args* args) {
@@ -247,6 +247,17 @@ void display_rt_stats(Args* args, char* ip_str, struct icmp* icmp, struct iphdr*
     } else {
         printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, ip->ttl, ttl_ms);
     }
+}
+
+int set_socket_options() {
+    struct timeval timeout;
+    timeout.tv_sec  = 1;
+    timeout.tv_usec = 0;
+    if (setsockopt(stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("setsockopt");
+        return -1;
+    }
+    return 0;
 }
 
 int main(int ac, char** av) {
@@ -296,14 +307,7 @@ int main(int ac, char** av) {
     init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
     init_stats();
-    /*
-     * Sets the timeout option to our socket so we don't hang for 2 hours.
-     */
-    struct timeval timeout;
-    timeout.tv_sec  = 1;
-    timeout.tv_usec = 0;
-    if (setsockopt(stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        perror("setsockopt");
+    if (set_socket_options() < 0) {
         return EXIT_FAILURE;
     }
 
@@ -342,14 +346,8 @@ int main(int ac, char** av) {
                 continue;
             }
 
-            /*
-             * Skip the header part and store the rest icmp struct.
-             */
             struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
 
-            /*
-             * If any of these conditions evaluates to false, it means we received a packet which is not relevant to us.
-             */
             if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
                 gettimeofday(&trip_end, NULL);
                 double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
@@ -367,10 +365,6 @@ int main(int ac, char** av) {
             }
         }
 
-        /*
-         * Keep track of missing replies in order to early stop in case of too many failures
-         * (otherwise we would be spinning 1024 times before stopping).
-         */
         if (!received_reply) {
             failed_attempts++;
             if (failed_attempts >= 5) {
