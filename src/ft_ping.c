@@ -83,8 +83,7 @@ void sigint(const int sig) {
     double total_ms = (end_time.tv_sec - stats.start_time.tv_sec) * 1000.0 + (end_time.tv_usec - stats.start_time.tv_usec) / 1000.0;
 
     printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% ", stats.dest_host, stats.transmitted, stats.received, loss);
-    printf("packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max,
-           stats.rtt_mdev);
+    printf("packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
     close(stats.sockfd);
     exit(EXIT_SUCCESS);
 }
@@ -211,7 +210,7 @@ void init_stats() {
     gettimeofday(&stats.start_time, NULL);
 }
 
-ICMPSendRes send_icmp_packet(char* packet, size_t packet_size, struct sockaddr_in* send_addr, int* failed_attempts) {
+ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size, const struct sockaddr_in* const send_addr, int* const failed_attempts) {
     if (sendto(stats.sockfd, packet, packet_size, 0, (struct sockaddr*)send_addr, sizeof(*send_addr)) <= 0) {
         perror("sendto");
 
@@ -226,13 +225,12 @@ ICMPSendRes send_icmp_packet(char* packet, size_t packet_size, struct sockaddr_i
     return ICMP_SEND_OK;
 }
 
-ssize_t recv_icmp_packet(char* const buf, const size_t buf_size, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len, const int count,
-                         const bool v) {
-    ssize_t recv_len = recvfrom(stats.sockfd, buf, buf_size, 0, (struct sockaddr*)recv_addr, addr_len);
+ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len, const int seq, const bool v) {
+    ssize_t recv_len = recvfrom(stats.sockfd, buf, buflen, 0, (struct sockaddr*)recv_addr, addr_len);
     if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             if (v) {
-                printf("Request timeout for icmp_seq %d\n", count);
+                printf("Request timeout for icmp_seq %d\n", seq);
             }
         } else {
             perror("recvfrom");
