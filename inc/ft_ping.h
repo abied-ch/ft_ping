@@ -6,8 +6,6 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
-#define USAGE_ERROR "ft_ping: usage error: Destination address required\n"
-
 #define PING_INTERVAL 1000000
 #define PACKET_SIZE 64
 #define PAYLOAD_SIZE 56
