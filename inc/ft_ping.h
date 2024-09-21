@@ -31,12 +31,6 @@ typedef struct {
 } Args;
 
 typedef enum {
-    OK,
-    FAILURE,
-    ARG_ERR,
-} Ret;
-
-typedef enum {
     ICMP_SEND_OK,
     ICMP_SEND_FAILURE,
     ICMP_SEND_MAX_RETRIES_REACHED,

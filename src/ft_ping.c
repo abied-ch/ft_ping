@@ -98,7 +98,7 @@ Parses the arguments from the command line.
 * Anything without leading `-` is parsed as destination address.
 * Expects exactly `1` destination address.
 * .
-* Returns `0` on success, `-1` on missing destination address, `2` on unexpected input.
+* Returns `0` on success, `-1` on error.
 */
 int parse_args(const int ac, const char** const av, Args* const args) {
     int i = 0;
@@ -108,12 +108,15 @@ int parse_args(const int ac, const char** const av, Args* const args) {
             if (!strcmp(av[i], "-v")) {
                 args->v = true;
             } else if (!strcmp(av[i], "-h") || !strcmp(av[i], "-?")) {
+                /**
+                 * Note: oh-my-zsh interprets '?' as a single-character wildcard
+                 */
                 args->h = true;
-                return ARG_ERR;
+                return 0;
             } else {
                 fprintf(stderr, "Unknown option: %s\n", av[i]);
                 args->h = true;
-                return ARG_ERR;
+                return 0;
             }
         } else {
             if (args->dest == NULL) {
@@ -121,7 +124,7 @@ int parse_args(const int ac, const char** const av, Args* const args) {
             } else {
                 fprintf(stderr, "Unexpected argument: %s\n", av[i]);
                 args->h = true;
-                return ARG_ERR;
+                return 0;
             }
         }
     }
@@ -138,6 +141,7 @@ int parse_args(const int ac, const char** const av, Args* const args) {
  * Returns `2`
  */
 int help() {
+    close(stats.sockfd);
     printf("\nUsage:\n./ft_ping [OPTIONS] <destination>\n\nOptions:\n\t-v: verbose\n\t-(h | ?): help\n");
     return 2;
 }
@@ -251,27 +255,44 @@ void display_rt_stats(const bool v, const char* const ip_str, const struct icmp*
     printf("ttl=%u time=%.3f ms\n", ip->ttl, rt_ms);
 }
 
+/**
+ * Sets 1 second timeout on send & receive
+ */
 int set_socket_options() {
     struct timeval timeout;
+
     timeout.tv_sec  = 1;
     timeout.tv_usec = 0;
-    if (setsockopt(stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        perror("setsockopt");
+    if (setsockopt(stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+        perror("setsockopt (SO_RCVTIMEO)");
         return -1;
     }
+
+    timeout.tv_sec  = 1;
+    timeout.tv_usec = 0;
+    if (setsockopt(stats.sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
+        perror("setsockopt (SO_SNDTIMEO)");
+        return -1;
+    }
+
     return 0;
+}
+
+int _abort() {
+    close(stats.sockfd);
+    return EXIT_FAILURE;
 }
 
 int main(int ac, char** av) {
     stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-    if (stats.sockfd < 0) {
+    if (stats.sockfd == -1) {
         perror("socket");
         return EXIT_FAILURE;
     }
 
     Args args = {0};
-    if (parse_args(ac, (const char**)av, &args) == EXIT_FAILURE) {
-        return EXIT_FAILURE;
+    if (parse_args(ac, (const char**)av, &args) == -1) {
+        return _abort();
     }
 
     if (args.h) {
@@ -279,8 +300,8 @@ int main(int ac, char** av) {
     }
 
     struct sockaddr_in send_addr = {0};
-    if (get_send_addr(&args, &send_addr) != 0) {
-        return EXIT_FAILURE;
+    if (get_send_addr(&args, &send_addr) == -1) {
+        return _abort();
     }
 
     if (args.v) {
@@ -309,8 +330,8 @@ int main(int ac, char** av) {
     init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
     init_stats();
-    if (set_socket_options() < 0) {
-        return EXIT_FAILURE;
+    if (set_socket_options() == -1) {
+        return _abort();
     }
 
     int failed_attempts = 0;
@@ -333,7 +354,7 @@ int main(int ac, char** av) {
         while (true) {
             ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
             if (recv_len <= 0) {
-                return EXIT_FAILURE;
+                return _abort();
             }
 
             /*
@@ -372,10 +393,9 @@ int main(int ac, char** av) {
         } else {
             failed_attempts = 0;
         }
-
         usleep(PING_INTERVAL);
     }
 
     close(stats.sockfd);
-    return 0;
+    return EXIT_SUCCESS;
 }
