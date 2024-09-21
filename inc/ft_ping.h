@@ -25,9 +25,9 @@ typedef struct {
 } Stats;
 
 typedef struct {
-    bool  verbose;
-    bool  help;
-    char* dest;
+    bool  v;
+    bool  h;
+    const char* dest;
 } Args;
 
 typedef enum {

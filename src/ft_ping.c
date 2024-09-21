@@ -31,9 +31,9 @@ Stats stats = {0};
  * .
  * https://web.archive.org/web/20020916085726/http://www.netfor2.com/checksum.html
  */
-unsigned short checksum(void* buffer, int len) {
-    unsigned short* buf = buffer;
-    unsigned int    sum = 0;
+unsigned short checksum(const void* const buffer, int len) {
+    const unsigned short* buf = buffer;
+    unsigned int          sum = 0;
 
     for (sum = 0; len > 1; len -= 2) {
         sum += *buf++;
@@ -50,7 +50,7 @@ unsigned short checksum(void* buffer, int len) {
 /**
  * Initializes icmp header at each ping iteration.
  */
-void init_icmp_header(struct icmp* icmp_header, const int seq, char* packet, const int packet_len) {
+void init_icmp_header(struct icmp* const icmp_header, const int seq, const char* const packet, const int packet_len) {
     icmp_header->icmp_type = ICMP_ECHO;
     icmp_header->icmp_id   = getpid();
     icmp_header->icmp_seq  = seq;
@@ -83,7 +83,8 @@ void sigint(const int sig) {
     double total_ms = (end_time.tv_sec - stats.start_time.tv_sec) * 1000.0 + (end_time.tv_usec - stats.start_time.tv_usec) / 1000.0;
 
     printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% ", stats.dest_host, stats.transmitted, stats.received, loss);
-    printf("packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
+    printf("packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max,
+           stats.rtt_mdev);
     close(stats.sockfd);
     exit(EXIT_SUCCESS);
 }
@@ -100,19 +101,19 @@ Parses the arguments from the command line.
 * .
 * Returns `0` on success, `-1` on missing destination address, `2` on unexpected input.
 */
-int parse_args(const int ac, char** av, Args* args) {
+int parse_args(const int ac, const char** const av, Args* const args) {
     int i = 0;
 
     while (++i < ac) {
         if (av[i][0] == '-') {
             if (!strcmp(av[i], "-v")) {
-                args->verbose = true;
+                args->v = true;
             } else if (!strcmp(av[i], "-h") || !strcmp(av[i], "-?")) {
-                args->help = true;
+                args->h = true;
                 return ARG_ERR;
             } else {
                 fprintf(stderr, "Unknown option: %s\n", av[i]);
-                args->help = true;
+                args->h = true;
                 return ARG_ERR;
             }
         } else {
@@ -120,12 +121,12 @@ int parse_args(const int ac, char** av, Args* args) {
                 args->dest = av[i];
             } else {
                 fprintf(stderr, "Unexpected argument: %s\n", av[i]);
-                args->help = true;
+                args->h = true;
                 return ARG_ERR;
             }
         }
     }
-    if (!args->dest && !args->help) {
+    if (!args->dest && !args->h) {
         fprintf(stderr, "Destination address required\n");
         return -1;
     }
@@ -151,18 +152,18 @@ int help() {
  * .
  * Returns `0` on success, `-1` on failure.
  */
-int get_send_addr(const Args args, struct sockaddr_in* send_addr) {
+int get_send_addr(const Args* const args, struct sockaddr_in* const send_addr) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family   = AF_INET;
     hints.ai_socktype = SOCK_RAW;
 
-    int err = getaddrinfo(args.dest, NULL, &hints, &res);
+    int err = getaddrinfo(args->dest, NULL, &hints, &res);
     if (err != 0) {
-        if (args.verbose) {
+        if (args->v) {
             printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", stats.sockfd);
         }
-        fprintf(stderr, "ft_ping: %s: %s\n", args.dest, gai_strerror(err));
+        fprintf(stderr, "ft_ping: %s: %s\n", args->dest, gai_strerror(err));
         return -1;
     }
     struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
@@ -225,11 +226,12 @@ ICMPSendRes send_icmp_packet(char* packet, size_t packet_size, struct sockaddr_i
     return ICMP_SEND_OK;
 }
 
-ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* recv_addr, socklen_t* addr_len, int count, Args* args) {
-    ssize_t recv_len = recvfrom(stats.sockfd, buffer, buffer_size, 0, (struct sockaddr*)recv_addr, addr_len);
+ssize_t recv_icmp_packet(char* const buf, const size_t buf_size, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len, const int count,
+                         const bool v) {
+    ssize_t recv_len = recvfrom(stats.sockfd, buf, buf_size, 0, (struct sockaddr*)recv_addr, addr_len);
     if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            if (args->verbose) {
+            if (v) {
                 printf("Request timeout for icmp_seq %d\n", count);
             }
         } else {
@@ -239,9 +241,9 @@ ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* r
     return recv_len;
 }
 
-void display_rt_stats(Args* args, char* ip_str, struct icmp* icmp, struct iphdr* ip, double rt_ms) {
+void display_rt_stats(const bool v, const char* const ip_str, const struct icmp* const icmp, const struct iphdr* const ip, const double rt_ms) {
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, ip_str, icmp->icmp_seq);
-    if (args->verbose) {
+    if (v) {
         printf("ident=%d ", icmp->icmp_id);
     }
     /**
@@ -270,20 +272,20 @@ int main(int ac, char** av) {
     }
 
     Args args = {0};
-    if (parse_args(ac, av, &args) == EXIT_FAILURE) {
+    if (parse_args(ac, (const char**)av, &args) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
 
-    if (args.help) {
+    if (args.h) {
         return help();
     }
 
     struct sockaddr_in send_addr = {0};
-    if (get_send_addr(args, &send_addr) != 0) {
+    if (get_send_addr(&args, &send_addr) != 0) {
         return EXIT_FAILURE;
     }
 
-    if (args.verbose) {
+    if (args.v) {
         printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", stats.sockfd);
         printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args.dest);
     }
@@ -331,7 +333,7 @@ int main(int ac, char** av) {
 
         bool received_reply = false;
         while (true) {
-            ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, &args);
+            ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
             if (recv_len <= 0) {
                 return EXIT_FAILURE;
             }
@@ -350,7 +352,7 @@ int main(int ac, char** av) {
                 gettimeofday(&trip_end, NULL);
                 double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 
-                display_rt_stats(&args, ip_str, icmp, ip, rt_ms);
+                display_rt_stats(args.v, ip_str, icmp, ip, rt_ms);
 
                 if (stats.received < MAX_PINGS) {
                     stats.rtts[stats.received] = rt_ms;
