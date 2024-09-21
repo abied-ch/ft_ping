@@ -56,9 +56,6 @@ void init_icmp_header(struct icmp* icmp_header, const int seq, char* packet, con
     icmp_header->icmp_seq  = seq;
 
     /*
-     * To future self: before thinking `thiS lInE is uSelESs, I aM ovERwriTing the chECksUm
-     * sO wHy reSeT it BeFoReHAnd`:
-     *
      * `icmp_header` and `packet` point to the same memory address, they are just _cast to different types_.
      * Removing this line will result in the checksum not matching and all packets (except for the first
      * one) being lost!
@@ -85,7 +82,8 @@ void sigint(const int sig) {
     gettimeofday(&end_time, NULL);
     double total_ms = (end_time.tv_sec - stats.start_time.tv_sec) * 1000.0 + (end_time.tv_usec - stats.start_time.tv_usec) / 1000.0;
 
-    printf(SIGINT_MSG, stats.dest_host, stats.transmitted, stats.received, loss, (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
+    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% ", stats.dest_host, stats.transmitted, stats.received, loss);
+    printf("packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
     close(stats.sockfd);
     exit(EXIT_SUCCESS);
 }
@@ -140,7 +138,7 @@ int parse_args(const int ac, char** av, Args* args) {
  * Returns `2`
  */
 int help() {
-    write(1, HELP, sizeof(HELP));
+    printf("\nUsage:\n./ft_ping [OPTIONS] <destination>\n\nOptions:\n\t-v: verbose\n\t-(h | ?): help\n");
     return 2;
 }
 
@@ -224,7 +222,7 @@ ICMPSendRes send_icmp_packet(char* packet, size_t packet_size, struct sockaddr_i
         return ICMP_SEND_FAILURE;
     }
     stats.transmitted++;
-    return 0;
+    return ICMP_SEND_OK;
 }
 
 ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* recv_addr, socklen_t* addr_len, int count, Args* args) {
@@ -241,12 +239,16 @@ ssize_t recv_icmp_packet(char* buffer, size_t buffer_size, struct sockaddr_in* r
     return recv_len;
 }
 
-void display_rt_stats(Args* args, char* ip_str, struct icmp* icmp, struct iphdr* ip, double ttl_ms) {
+void display_rt_stats(Args* args, char* ip_str, struct icmp* icmp, struct iphdr* ip, double rt_ms) {
+    printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, ip_str, icmp->icmp_seq);
     if (args->verbose) {
-        printf("%d bytes from %s: icmp_seq=%u ident=%d ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, icmp->icmp_id, ip->ttl, ttl_ms);
-    } else {
-        printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3f ms\n", PACKET_SIZE, ip_str, icmp->icmp_seq, ip->ttl, ttl_ms);
+        printf("ident=%d ", icmp->icmp_id);
     }
+    /**
+     * ttl: Time to live -> how many roundtrips a packet can go in the network before being discarded.
+     * Each time a router receives a packet, it subtracts one from ttl before passing it on.
+     */
+    printf("ttl=%u time=%.3f ms\n", ip->ttl, rt_ms);
 }
 
 int set_socket_options() {
@@ -341,24 +343,20 @@ int main(int ac, char** av) {
              */
             struct iphdr* ip            = (struct iphdr*)buffer;
             size_t        ip_header_len = ip->ihl << 2;
-            if (recv_len < (ssize_t)(ip_header_len + sizeof(struct icmp))) {
-                fprintf(stderr, "Error: Received packet is too short to be valid\n");
-                continue;
-            }
 
             struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
 
             if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
                 gettimeofday(&trip_end, NULL);
-                double ttl_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
+                double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 
-                display_rt_stats(&args, ip_str, icmp, ip, ttl_ms);
+                display_rt_stats(&args, ip_str, icmp, ip, rt_ms);
 
                 if (stats.received < MAX_PINGS) {
-                    stats.rtts[stats.received] = ttl_ms;
+                    stats.rtts[stats.received] = rt_ms;
                 }
 
-                update_stats(ttl_ms);
+                update_stats(rt_ms);
 
                 received_reply = true;
                 break;

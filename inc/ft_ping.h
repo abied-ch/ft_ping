@@ -6,10 +6,6 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
-#define HELP "\nUsage:\n./ft_ping [OPTIONS] <destination>\n\nOptions:\n\t-v: verbose\n\t-(h | ?): help\n"
-#define SIGINT_MSG                                                                                                                                             \
-    "\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% "                                                                                 \
-    "packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n"
 #define USAGE_ERROR "ft_ping: usage error: Destination address required\n"
 
 #define PING_INTERVAL 1000000
@@ -47,10 +43,5 @@ typedef enum {
     ICMP_SEND_FAILURE,
     ICMP_SEND_MAX_RETRIES_REACHED,
 } ICMPSendRes;
-
-typedef enum {
-    ICMP_RECV_OK,
-    ICMP_RECV_TOO_SHORT=-1,
-} ICMPRecvRes;
 
 #endif
