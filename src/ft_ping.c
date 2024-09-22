@@ -82,8 +82,12 @@ void sigint(const int sig) {
     gettimeofday(&end_time, NULL);
     double total_ms = (end_time.tv_sec - stats.start_time.tv_sec) * 1000.0 + (end_time.tv_usec - stats.start_time.tv_usec) / 1000.0;
 
-    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received, %d%% ", stats.dest_host, stats.transmitted, stats.received, loss);
-    printf("packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
+    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", stats.dest_host, stats.transmitted, stats.received);
+    if (stats.errors != 0) {
+        printf(", +%d errors", stats.errors);
+    }
+
+    printf(", %d%% packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", loss, (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
     close(stats.sockfd);
     exit(EXIT_SUCCESS);
 }
@@ -208,11 +212,7 @@ void update_stats(const double ttl_ms) {
  * Initializes stats struct, I think you figured that out.
  */
 void init_stats() {
-    stats.rtt_min           = INFINITY;
-    stats.rtt_max           = 0.0;
-    stats.rtt_avg           = 0.0;
-    stats.errors            = 0;
-    stats.packets_in_flight = 0;
+    stats.rtt_min = INFINITY;
     gettimeofday(&stats.start_time, NULL);
 }
 
