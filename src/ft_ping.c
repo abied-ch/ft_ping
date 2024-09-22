@@ -396,20 +396,40 @@ int main(int ac, char** av) {
         gettimeofday(&trip_begin, NULL);
 
         while (true) {
-            recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
-            // if (recv_len <= 0) {
-            //     break;
-            // }
+            ssize_t       recv_len      = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
+            struct iphdr* ip            = (struct iphdr*)buffer;
+            size_t        ip_header_len = ip->ihl << 2;
+            struct icmp*  icmp          = (struct icmp*)(buffer + ip_header_len);
+            if (recv_len <= 0) {
+                if (icmp->icmp_type == ICMP_DEST_UNREACH) {
+                    switch (icmp->icmp_code) {
+                    case ICMP_NET_UNREACH:
+                        fprintf(stderr, "From %s icmp_seq=%d Destination Network Unreachable\n", stats.local_ip, count);
+                        break;
+                    case ICMP_HOST_UNREACH:
+                        fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable\n", stats.local_ip, count);
+                        break;
+                    case ICMP_FRAG_NEEDED:
+                        fprintf(stderr, "From %s icmp_seq=%d Fragmentation needed\n", stats.local_ip, count);
+                        break;
+                    default:
+                        fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", stats.local_ip, count, icmp->icmp_code);
+                        break;
+                    }
+                    break;
+                }
+                break;
+            }
 
             /*
              * The Internet Header Length (IHL) field in the IP header is represented in 32-bit
              * words. Since 32 / 8 == 4, each word in this contet is 4 bytes, meaning that we
              * need to multiply the IHL by 4 to get the actual header length in bytes.
              */
-            struct iphdr* ip            = (struct iphdr*)buffer;
-            size_t        ip_header_len = ip->ihl << 2;
+            // struct iphdr* ip            = (struct iphdr*)buffer;
+            // size_t        ip_header_len = ip->ihl << 2;
 
-            struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
+            // struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
             if (icmp->icmp_type == ICMP_DEST_UNREACH) {
                 switch (icmp->icmp_code) {
                 case ICMP_NET_UNREACH:
