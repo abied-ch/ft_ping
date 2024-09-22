@@ -208,9 +208,11 @@ void update_stats(const double ttl_ms) {
  * Initializes stats struct, I think you figured that out.
  */
 void init_stats() {
-    stats.rtt_min = INFINITY;
-    stats.rtt_max = 0.0;
-    stats.rtt_avg = 0.0;
+    stats.rtt_min           = INFINITY;
+    stats.rtt_max           = 0.0;
+    stats.rtt_avg           = 0.0;
+    stats.errors            = 0;
+    stats.packets_in_flight = 0;
     gettimeofday(&stats.start_time, NULL);
 }
 
@@ -295,7 +297,7 @@ int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip, size
         return -1;
     }
 
-    if (getsockname(sockfd, (struct sockaddr*)&local_addr, &addr_len) == -1) {
+    if (getsockname(stats.sockfd, (struct sockaddr*)&local_addr, &addr_len) == -1) {
         perror("getsockname");
         close(sockfd);
         return -1;
@@ -331,6 +333,8 @@ void log_recv_error(struct icmp* icmp, int seq, int recv_len) {
             break;
         }
     } else if (recv_len <= 0) {
+        stats.packets_in_flight++;
+
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             fprintf(stderr, "From %s icmp_seq=%d Request timed out\n", stats.local_ip, seq);
         } else {
@@ -427,10 +431,13 @@ int main(int ac, char** av) {
             struct iphdr* ip            = (struct iphdr*)buffer;
             size_t        ip_header_len = ip->ihl << 2;
             struct icmp*  icmp          = (struct icmp*)(buffer + ip_header_len);
+
             if (recv_len <= 0) {
                 log_recv_error(icmp, count, recv_len);
                 break;
             } else if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
+                stats.packets_in_flight++;
+
                 gettimeofday(&trip_end, NULL);
                 double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 

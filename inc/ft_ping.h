@@ -23,6 +23,8 @@ typedef struct {
     char           dest_host[256];
     int            sockfd;
     struct timeval start_time;
+    int            errors;
+    int            packets_in_flight;
     char           local_ip[INET6_ADDRSTRLEN];
 } Stats;
 
