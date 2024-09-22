@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
     bool v;
     bool h;
+    int ttl;
     const char* dest;
 } Args;
 

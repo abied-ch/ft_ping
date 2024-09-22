@@ -4,6 +4,7 @@
 #include <bits/floatn-common.h>
 #include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <linux/stddef.h>
@@ -107,6 +108,7 @@ Parses the arguments from the command line.
 */
 int parse_args(const int ac, const char** const av, Args* const args) {
     int i = 0;
+    args->ttl = -1;
 
     while (++i < ac) {
         if (av[i][0] == '-') {
@@ -118,6 +120,20 @@ int parse_args(const int ac, const char** const av, Args* const args) {
                  */
                 args->h = true;
                 return 0;
+            } else if (!strcmp(av[i], "--ttl")) {
+                if (i == ac - 1) {
+                    fprintf(stderr, "ft_ping: option requires an argument -- 'ttl'");
+                    args->h = true;
+                    return 0;
+                }
+                i++;
+                for (int c = 0; av[i][c]; ++c) {
+                    if (!isdigit(av[i][c])) {
+                        fprintf(stderr, "ft_ping: invalid argument: '%s'", av[i]);
+                        return -1;
+                    }
+                }
+                args->ttl = atoi(av[i]);
             } else {
                 fprintf(stderr, "Unknown option: %s\n", av[i]);
                 args->h = true;
@@ -127,14 +143,13 @@ int parse_args(const int ac, const char** const av, Args* const args) {
             if (args->dest == NULL) {
                 args->dest = av[i];
             } else {
-                fprintf(stderr, "Unexpected argument: %s\n", av[i]);
                 args->h = true;
                 return 0;
             }
         }
     }
     if (!args->dest && !args->h) {
-        fprintf(stderr, "Destination address required\n");
+        fprintf(stderr, "ft_ping: usage error: Destination address required\n");
         return -1;
     }
     return 0;
@@ -240,7 +255,7 @@ void display_rt_stats(const bool v, const char* const ip_str, const struct icmp*
     }
     printf("ttl=%u time=%.3f ms\n", ip->ttl, rt_ms);
 }
-int set_socket_options() {
+int set_socket_options(Args* args) {
     struct timeval timeout;
 
     timeout.tv_sec = 0;
@@ -255,6 +270,12 @@ int set_socket_options() {
         return -1;
     }
 
+    if (args->ttl != -1) {
+        if (setsockopt(stats.sockfd, IPPROTO_IP, IP_TTL, &args->ttl, sizeof(args->ttl)) == -1) {
+            perror("setsockopt (IP_TTL)");
+            return -1;
+        }
+    }
     return 0;
 }
 
@@ -372,7 +393,7 @@ int main(int ac, char** av) {
     init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
     init_stats();
-    if (set_socket_options() == -1) {
+    if (set_socket_options(&args) == -1) {
         return _abort();
     }
 
