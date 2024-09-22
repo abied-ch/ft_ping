@@ -229,12 +229,14 @@ ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size,
     return ICMP_SEND_OK;
 }
 
+int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip)
+
 ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len, const int seq, const bool v) {
     ssize_t recv_len = recvfrom(stats.sockfd, buf, buflen, 0, (struct sockaddr*)recv_addr, addr_len);
     if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             if (v) {
-                printf("Request timeout for icmp_seq %d\n", seq);
+		fprintf(stderr, "From 10.12.4.8 icmp_seq=%d Destination Host Unreachable", seq);
             }
         } else {
             perror("recvfrom");
@@ -254,7 +256,6 @@ void display_rt_stats(const bool v, const char* const ip_str, const struct icmp*
      */
     printf("ttl=%u time=%.3f ms\n", ip->ttl, rt_ms);
 }
-
 /**
  * Sets 1 second timeout on send & receive
  */
@@ -350,11 +351,10 @@ int main(int ac, char** av) {
         struct timeval trip_begin, trip_end;
         gettimeofday(&trip_begin, NULL);
 
-        bool received_reply = false;
         while (true) {
             ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
             if (recv_len <= 0) {
-                return _abort();
+                break;
             }
 
             /*
@@ -379,20 +379,10 @@ int main(int ac, char** av) {
 
                 update_stats(rt_ms);
 
-                received_reply = true;
                 break;
             }
         }
 
-        if (!received_reply) {
-            failed_attempts++;
-            if (failed_attempts >= 5) {
-                fprintf(stderr, "Too many consecutive failures, exiting.\n");
-                break;
-            }
-        } else {
-            failed_attempts = 0;
-        }
         usleep(PING_INTERVAL);
     }
 
