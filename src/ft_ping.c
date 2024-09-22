@@ -29,7 +29,8 @@ Stats g_stats = {0};
 // wrapping around carry instead of making the number outgrow its bounds.
 // .
 // https://web.archive.org/web/20020916085726/http://www.netfor2.com/checksum.html
-unsigned short checksum(const void *const buffer, int len) {
+unsigned short
+checksum(const void *const buffer, int len) {
     const unsigned short *buf = buffer;
     unsigned int sum = 0;
 
@@ -46,7 +47,8 @@ unsigned short checksum(const void *const buffer, int len) {
     return ~sum;
 }
 
-void init_icmp_header(struct icmp *const icmp_header, const int seq, const char *const packet, const int packet_len) {
+void
+init_icmp_header(struct icmp *const icmp_header, const int seq, const char *const packet, const int packet_len) {
     icmp_header->icmp_type = ICMP_ECHO;
     icmp_header->icmp_id = getpid();
     icmp_header->icmp_seq = seq;
@@ -58,7 +60,8 @@ void init_icmp_header(struct icmp *const icmp_header, const int seq, const char 
     icmp_header->icmp_cksum = checksum(packet, packet_len);
 }
 
-void sigint(const int sig) {
+void
+sigint(const int sig) {
     if (sig != SIGINT) {
         return;
     }
@@ -70,20 +73,19 @@ void sigint(const int sig) {
     gettimeofday(&end, NULL);
     double tot_ms = (end.tv_sec - g_stats.start.tv_sec) * 1000.0 + (end.tv_usec - g_stats.start.tv_usec) / 1000.0;
 
-    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.host, g_stats.sent,
-           g_stats.rcvd);
+    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.host, g_stats.sent, g_stats.rcvd);
     if (g_stats.errs != 0) {
         printf(", +%d errors", g_stats.errs);
     }
 
     printf(", %d%% packet loss time %dms\n", loss, (int)tot_ms);
-    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max,
-           g_stats.rtt_mdev);
+    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
     close(g_stats.sockfd);
     exit(EXIT_SUCCESS);
 }
 
-int get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
+int
+get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -104,7 +106,8 @@ int get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     return 0;
 }
 
-void update_stats(const double ttl_ms) {
+void
+update_stats(const double ttl_ms) {
     g_stats.rcvd++;
     g_stats.rtt_min = fmin(g_stats.rtt_min, ttl_ms);
     g_stats.rtt_max = fmax(g_stats.rtt_max, ttl_ms);
@@ -118,12 +121,14 @@ void update_stats(const double ttl_ms) {
     g_stats.rtt_mdev = sum_deviation / g_stats.rcvd;
 }
 
-void init_stats() {
+void
+init_stats() {
     g_stats.rtt_min = __builtin_inff64();
     gettimeofday(&g_stats.start, NULL);
 }
 
-int send_icmp_packet(const char *const packet, const size_t packet_size, const struct sockaddr_in *const send_addr) {
+int
+send_icmp_packet(const char *const packet, const size_t packet_size, const struct sockaddr_in *const send_addr) {
     if (sendto(g_stats.sockfd, packet, packet_size, 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
         perror("sendto");
         return -1;
@@ -132,16 +137,17 @@ int send_icmp_packet(const char *const packet, const size_t packet_size, const s
     return 0;
 }
 
-void display_rt_stats(const bool v, const char *const ip_str, const struct icmp *const icmp,
-                      const struct iphdr *const ip, const double rt_ms) {
+void
+display_rt_stats(const bool v, const char *const ip_str, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, ip_str, icmp->icmp_seq);
     if (v) {
         printf("ident=%d ", icmp->icmp_id);
     }
-    printf("ttl=%u time=%.3f ms\n", ip->ttl, rt_ms);
+    printf("ttl=%u time=%.3f ms\n", ip->ttl, ms);
 }
 
-int set_socket_options(Args *args) {
+int
+set_socket_options(Args *args) {
     struct timeval timeout;
 
     timeout.tv_sec = 0;
@@ -165,7 +171,8 @@ int set_socket_options(Args *args) {
     return 0;
 }
 
-int get_local_ip(char *const local_ip, const size_t ip_len) {
+int
+get_local_ip(char *const local_ip, const size_t ip_len) {
     struct sockaddr_in local_addr;
     socklen_t addr_len = sizeof(local_addr);
 
@@ -182,7 +189,8 @@ int get_local_ip(char *const local_ip, const size_t ip_len) {
     return 0;
 }
 
-int main(int ac, char **av) {
+int
+main(int ac, char **av) {
     g_stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (g_stats.sockfd == -1) {
         perror("socket");
@@ -275,8 +283,7 @@ int main(int ac, char **av) {
                     break;
                 }
                 gettimeofday(&trip_end, NULL);
-                double rt_ms =
-                    (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
+                double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 
                 display_rt_stats(args.v, ip_str, icmp, ip, rt_ms);
 

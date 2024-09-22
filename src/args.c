@@ -13,19 +13,22 @@ typedef struct {
     bool requires_arg;
 } OptionEntry;
 
-static int _handle_v(Args *const args, const char *const arg) {
+static int
+_handle_v(Args *const args, const char *const arg) {
     (void)arg;
     args->v = true;
     return 0;
 }
 
-static int _handle_h(Args *const args, const char *const arg) {
+static int
+_handle_h(Args *const args, const char *const arg) {
     (void)arg;
     args->h = true;
     return 0;
 }
 
-static int _handle_ttl(Args *args, const char *arg) {
+static int
+_handle_ttl(Args *args, const char *arg) {
     char *endptr;
     long val = strtol(arg, &endptr, 10);
 
@@ -46,7 +49,8 @@ static const OptionEntry option_map[] = {
     {NULL,    NULL,        false},
 };
 
-int help() {
+int
+help() {
     fprintf(stderr, "Usage: ./ft_ping [options] <destination>\n"
                     "Options:\n"
                     "  -v              Verbose output\n"
@@ -62,7 +66,8 @@ int help() {
 //      -> Print help message
 // - Else:
 //      -> Print error message alone
-int _handle_extra_arg(Args *const args) {
+int
+_handle_extra_arg(Args *const args) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -78,7 +83,8 @@ int _handle_extra_arg(Args *const args) {
     }
 }
 
-int parse_args(const int ac, const char **const av, Args *const args) {
+int
+parse_args(const int ac, const char **const av, Args *const args) {
     bool extra_arg = false;
     args->ttl = -1;
 
