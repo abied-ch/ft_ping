@@ -234,7 +234,7 @@ ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sock
     if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             if (v) {
-                fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable", stats.local_ip, seq);
+                fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable\n", stats.local_ip, seq);
             }
         } else {
             perror("recvfrom");
@@ -396,10 +396,10 @@ int main(int ac, char** av) {
         gettimeofday(&trip_begin, NULL);
 
         while (true) {
-            ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
-            if (recv_len <= 0) {
-                break;
-            }
+            recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
+            // if (recv_len <= 0) {
+            //     break;
+            // }
 
             /*
              * The Internet Header Length (IHL) field in the IP header is represented in 32-bit
@@ -410,7 +410,22 @@ int main(int ac, char** av) {
             size_t        ip_header_len = ip->ihl << 2;
 
             struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
-
+            if (icmp->icmp_type == ICMP_DEST_UNREACH) {
+                switch (icmp->icmp_code) {
+                case ICMP_NET_UNREACH:
+                    fprintf(stderr, "From %s icmp_seq=%d Destination Network Unreachable\n", stats.local_ip, count);
+                    break;
+                case ICMP_HOST_UNREACH:
+                    fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable\n", stats.local_ip, count);
+                    break;
+                case ICMP_FRAG_NEEDED:
+                    fprintf(stderr, "From %s icmp_seq=%d Fragmentation needed\n", stats.local_ip, count);
+                    break;
+                default:
+                    fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", stats.local_ip, count, icmp->icmp_code);
+                    break;
+                }
+            }
             if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
                 gettimeofday(&trip_end, NULL);
                 double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
