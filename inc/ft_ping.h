@@ -41,6 +41,7 @@ typedef enum {
 } ICMPSendRes;
 
 int parse_args(const int ac, const char** const av, Args* const args);
+int help();
 
 extern Stats stats;
 

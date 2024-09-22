@@ -94,17 +94,6 @@ void sigint(const int sig) {
 }
 
 /*
- * Prints help message.
- * .
- * Returns `2`
- */
-int help() {
-    close(stats.sockfd);
-    printf("\nUsage:\n./ft_ping [OPTIONS] <destination>\n\nOptions:\n\t-v: verbose\n\t-(h | ?): help\n");
-    return 2;
-}
-
-/*
  * Fills `send_addr` with the destination host's metadata from `getaddrinfo`.
  * .
  * Notes:
@@ -287,7 +276,7 @@ int main(int ac, char** av) {
     }
 
     if (args.h) {
-        return help();
+        help();
     }
 
     struct sockaddr_in send_addr = {0};
