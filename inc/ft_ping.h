@@ -3,6 +3,7 @@
 
 #include <bits/types/struct_timeval.h>
 #include <inttypes.h>
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
@@ -22,11 +23,12 @@ typedef struct {
     char           dest_host[256];
     int            sockfd;
     struct timeval start_time;
+    char           local_ip[INET6_ADDRSTRLEN];
 } Stats;
 
 typedef struct {
-    bool  v;
-    bool  h;
+    bool        v;
+    bool        h;
     const char* dest;
 } Args;
 

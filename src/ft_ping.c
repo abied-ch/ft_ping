@@ -229,50 +229,12 @@ ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size,
     return ICMP_SEND_OK;
 }
 
-/**
- * Retrivees local IP for error handling (ping prints it in some error cases)
- */
-int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip, size_t ip_len) {
-    int                sockfd;
-    struct sockaddr_in local_addr;
-    socklen_t          addr_len = sizeof(local_addr);
-
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        perror("socket");
-        return -1;
-    }
-
-    if (connect(sockfd, (const struct sockaddr*)dest_addr, sizeof(*dest_addr)) == -1) {
-        perror("connect");
-        close(sockfd);
-        return -1;
-    }
-
-    if (getsockname(sockfd, (struct sockaddr*)&local_addr, &addr_len) == -1) {
-        perror("getsockname");
-        close(sockfd);
-        return -1;
-    }
-
-    if (inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, ip_len) == NULL) {
-        perror("inet_ntop");
-        close(sockfd);
-        return -1;
-    }
-    close(sockfd);
-    return 0;
-}
-
 ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len, const int seq, const bool v) {
     ssize_t recv_len = recvfrom(stats.sockfd, buf, buflen, 0, (struct sockaddr*)recv_addr, addr_len);
     if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             if (v) {
-                char local_ip[INET_ADDRSTRLEN];
-                if (get_local_ip(recv_addr, local_ip, sizeof(local_ip)) == -1) {
-                    strncpy(local_ip, "<unknown>\0", 10);
-                }
-                fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable", local_ip, seq);
+                fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable", stats.local_ip, seq);
             }
         } else {
             perror("recvfrom");
@@ -320,6 +282,42 @@ int _abort() {
     return EXIT_FAILURE;
 }
 
+int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip, size_t ip_len) {
+    int                sockfd;
+    struct sockaddr_in local_addr;
+    socklen_t          addr_len = sizeof(local_addr);
+
+    // Create a dummy socket (for IP retrieval only)
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("socket");
+        return -1;
+    }
+
+    // Connect the socket to the destination (this doesn't actually send data)
+    if (connect(sockfd, (const struct sockaddr*)dest_addr, sizeof(*dest_addr)) == -1) {
+        perror("connect");
+        close(sockfd);
+        return -1;
+    }
+
+    // Use getsockname to retrieve the locally-bound address (the local IP)
+    if (getsockname(sockfd, (struct sockaddr*)&local_addr, &addr_len) == -1) {
+        perror("getsockname");
+        close(sockfd);
+        return -1;
+    }
+
+    // Convert the IP address to a human-readable string
+    if (inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, ip_len) == NULL) {
+        perror("inet_ntop");
+        close(sockfd);
+        return -1;
+    }
+
+    close(sockfd);
+    return 0;
+}
+
 int main(int ac, char** av) {
     stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (stats.sockfd == -1) {
@@ -339,6 +337,16 @@ int main(int ac, char** av) {
     struct sockaddr_in send_addr = {0};
     if (get_send_addr(&args, &send_addr) == -1) {
         return _abort();
+    }
+
+    char local_ip[INET_ADDRSTRLEN];
+    if (get_local_ip(&send_addr, local_ip, sizeof(local_ip)) == 0) {
+        strncpy(stats.local_ip, local_ip, sizeof(stats.local_ip));
+        stats.local_ip[sizeof(stats.local_ip) - 1] = '\0';
+    } else {
+        fprintf(stderr, "Failed to determine local IP address, using 0.0.0.0 as a placeholder.");
+        strncpy(stats.local_ip, "0.0.0.0", sizeof(stats.local_ip));
+        stats.local_ip[sizeof(stats.local_ip) - 1] = '\0';
     }
 
     if (args.v) {
