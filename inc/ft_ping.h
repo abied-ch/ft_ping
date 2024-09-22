@@ -4,6 +4,7 @@
 #include <bits/types/struct_timeval.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include <netinet/ip_icmp.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
@@ -25,7 +26,7 @@ typedef struct {
     struct timeval start_time;
     int errors;
     char local_ip[INET6_ADDRSTRLEN];
-    const char* dest;
+    const char *dest;
 } Stats;
 
 typedef struct {
@@ -40,9 +41,10 @@ typedef enum {
     ICMP_SEND_MAX_RETRIES_REACHED,
 } ICMPSendRes;
 
-int parse_args(const int ac, const char** const av, Args* const args);
+int parse_args(const int ac, const char **const av, Args *const args);
 int help();
+void recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
 
-extern Stats stats;
+extern Stats g_stats;
 
 #endif
