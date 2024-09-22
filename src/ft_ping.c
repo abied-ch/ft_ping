@@ -64,32 +64,26 @@ void init_icmp_header(struct icmp *const icmp_header, const int seq, const char 
     icmp_header->icmp_cksum = checksum(packet, packet_len);
 }
 
-/*
- * Handles `SIGINT`.
- * .
- * In the case of `ping`, this means calculating the total ping time (from first ping to
- * signal receive time) and printing the ping statistics before exiting.
- */
+// Handler for sigint
 void sigint(const int sig) {
     if (sig != SIGINT) {
         return;
     }
-    if (g_stats.transmitted < 1) {
-        g_stats.transmitted = 1;
+    if (g_stats.sent < 1) {
+        g_stats.sent = 1;
     }
-    int loss = 100 - (g_stats.received * 100) / g_stats.transmitted;
-    struct timeval end_time;
-    gettimeofday(&end_time, NULL);
-    double total_ms = (end_time.tv_sec - g_stats.start_time.tv_sec) * 1000.0 +
-                      (end_time.tv_usec - g_stats.start_time.tv_usec) / 1000.0;
+    int loss = 100 - (g_stats.rcvd * 100) / g_stats.sent;
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    double tot_ms = (end.tv_sec - g_stats.start.tv_sec) * 1000.0 + (end.tv_usec - g_stats.start.tv_usec) / 1000.0;
 
-    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.dest_host, g_stats.transmitted,
-           g_stats.received);
-    if (g_stats.errors != 0) {
-        printf(", +%d errors", g_stats.errors);
+    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.host, g_stats.sent,
+           g_stats.rcvd);
+    if (g_stats.errs != 0) {
+        printf(", +%d errors", g_stats.errs);
     }
 
-    printf(", %d%% packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", loss, (int)total_ms,
+    printf(", %d%% packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", loss, (int)tot_ms,
            g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
     close(g_stats.sockfd);
     exit(EXIT_SUCCESS);
@@ -110,12 +104,12 @@ int get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_RAW;
 
-    int err = getaddrinfo(g_stats.dest, NULL, &hints, &res);
+    int err = getaddrinfo(args->dest, NULL, &hints, &res);
     if (err != 0) {
         if (args->v) {
             printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
         }
-        fprintf(stderr, "ft_ping: %s: %s\n", g_stats.dest, gai_strerror(err));
+        fprintf(stderr, "ft_ping: %s: %s\n", args->dest, gai_strerror(err));
         return -1;
     }
     struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
@@ -134,10 +128,10 @@ int get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
  * `rtt_mdev` (mean round trip time deviation)
  */
 void update_stats(const double ttl_ms) {
-    g_stats.received++;
+    g_stats.rcvd++;
     g_stats.rtt_min = fmin(g_stats.rtt_min, ttl_ms);
     g_stats.rtt_max = fmax(g_stats.rtt_max, ttl_ms);
-    g_stats.rtt_avg = ((g_stats.rtt_avg * (g_stats.received - 1)) + ttl_ms) / g_stats.received;
+    g_stats.rtt_avg = ((g_stats.rtt_avg * (g_stats.rcvd - 1)) + ttl_ms) / g_stats.rcvd;
 
     double sum_deviation = 0.0;
     /*
@@ -147,15 +141,15 @@ void update_stats(const double ttl_ms) {
      * - RTT = round trip times vector
      * - N = number of requests
      */
-    for (size_t i = 0; i < g_stats.received; ++i) {
+    for (size_t i = 0; i < g_stats.rcvd; ++i) {
         sum_deviation += fabs(g_stats.rtts[i] - g_stats.rtt_avg);
     }
-    g_stats.rtt_mdev = sum_deviation / g_stats.received;
+    g_stats.rtt_mdev = sum_deviation / g_stats.rcvd;
 }
 
 void init_stats() {
     g_stats.rtt_min = __builtin_inff64();
-    gettimeofday(&g_stats.start_time, NULL);
+    gettimeofday(&g_stats.start, NULL);
 }
 
 ICMPSendRes send_icmp_packet(const char *const packet, const size_t packet_size,
@@ -170,7 +164,7 @@ ICMPSendRes send_icmp_packet(const char *const packet, const size_t packet_size,
         }
         return ICMP_SEND_FAILURE;
     }
-    g_stats.transmitted++;
+    g_stats.sent++;
     return ICMP_SEND_OK;
 }
 
@@ -228,7 +222,6 @@ int get_local_ip(char *const local_ip, const size_t ip_len) {
 
     return 0;
 }
-
 int main(int ac, char **av) {
     g_stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (g_stats.sockfd == -1) {
@@ -264,18 +257,18 @@ int main(int ac, char **av) {
 
     if (args.v) {
         printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
-        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", g_stats.dest);
+        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args.dest);
     }
 
-    strncpy(g_stats.dest_host, g_stats.dest, sizeof(g_stats.dest_host));
-    g_stats.dest_host[sizeof(g_stats.dest_host) - 1] = '\0';
+    strncpy(g_stats.host, args.dest, sizeof(g_stats.host));
+    g_stats.host[sizeof(g_stats.host) - 1] = '\0';
 
     char buffer[1024];
     struct sockaddr_in recv_addr = {0};
     socklen_t addr_len = sizeof(recv_addr);
     char ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(send_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-    printf("PING %s (%s) %d(%zu) data bytes\n", g_stats.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
+    printf("PING %s (%s) %d(%zu) data bytes\n", args.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
 
     /*
      * Fill the packet with easily recognizable default value. Apparently this helps with debugging
@@ -333,8 +326,8 @@ int main(int ac, char **av) {
 
                 display_rt_stats(args.v, ip_str, icmp, ip, rt_ms);
 
-                if (g_stats.received < MAX_PINGS) {
-                    g_stats.rtts[g_stats.received] = rt_ms;
+                if (g_stats.rcvd < MAX_PINGS) {
+                    g_stats.rtts[g_stats.rcvd] = rt_ms;
                 }
 
                 update_stats(rt_ms);

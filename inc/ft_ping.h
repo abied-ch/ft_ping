@@ -14,25 +14,25 @@
 #define MAX_PINGS 1024
 
 typedef struct {
-    unsigned int transmitted;
-    unsigned int received;
+    unsigned int sent;
+    unsigned int rcvd;
     double rtt_min;
     double rtt_avg;
     double rtt_max;
     double rtt_mdev;
     double rtts[MAX_PINGS];
-    char dest_host[256];
+    char host[256];
     int sockfd;
-    struct timeval start_time;
-    int errors;
+    struct timeval start;
+    int errs;
     char local_ip[INET6_ADDRSTRLEN];
-    const char *dest;
 } Stats;
 
 typedef struct {
     bool v;
     bool h;
     int ttl;
+    const char *dest;
 } Args;
 
 typedef enum {

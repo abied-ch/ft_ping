@@ -43,7 +43,7 @@ static const OptionEntry option_map[] = {
     {"-h",    _handle_h,   false},
     {"-?",    _handle_h,   false},
     {"--ttl", _handle_ttl, true },
-    {NULL,    NULL,       false},
+    {NULL,    NULL,        false},
 };
 
 int help() {
@@ -60,7 +60,7 @@ int help() {
 //
 // - If it is resolvable:
 //      -> Print help message
-// - Else: 
+// - Else:
 //      -> Print error message alone
 int _handle_extra_arg(Args *const args) {
     struct addrinfo hints, *res;
@@ -68,9 +68,9 @@ int _handle_extra_arg(Args *const args) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_RAW;
 
-    int err = getaddrinfo(g_stats.dest, NULL, &hints, &res);
+    int err = getaddrinfo(args->dest, NULL, &hints, &res);
     if (err != 0) {
-        fprintf(stderr, "ft_ping: %s: %s\n", g_stats.dest, gai_strerror(err));
+        fprintf(stderr, "ft_ping: %s: %s\n", args->dest, gai_strerror(err));
         return -1;
     } else {
         args->h = true;
@@ -103,10 +103,10 @@ int parse_args(const int ac, const char **const av, Args *const args) {
                 return result;
             }
         } else {
-            if (g_stats.dest != NULL) {
+            if (args->dest != NULL) {
                 extra_arg = true;
             }
-            g_stats.dest = av[idx];
+            args->dest = av[idx];
         }
     }
     if (extra_arg) {

@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 void recv_error(const struct icmp *const icmp, const int seq, const int recv_len) {
-    g_stats.errors++;
+    g_stats.errs++;
     if (icmp->icmp_type == ICMP_DEST_UNREACH) {
         switch (icmp->icmp_code) {
         case ICMP_NET_UNREACH:
