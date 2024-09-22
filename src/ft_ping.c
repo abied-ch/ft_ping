@@ -298,6 +298,7 @@ int get_local_ip(char* const local_ip, const size_t ip_len) {
  * Logs errors receiving icmp packets based on the icmp code
  */
 void log_recv_error(const struct icmp* const icmp, const int seq, const int recv_len) {
+    stats.errors++;
     if (icmp->icmp_type == ICMP_DEST_UNREACH) {
         switch (icmp->icmp_code) {
         case ICMP_NET_UNREACH:
@@ -314,8 +315,6 @@ void log_recv_error(const struct icmp* const icmp, const int seq, const int recv
             break;
         }
     } else if (recv_len <= 0) {
-        stats.packets_in_flight++;
-
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             fprintf(stderr, "From %s icmp_seq=%d Request timed out\n", stats.local_ip, seq);
         } else {
@@ -417,7 +416,6 @@ int main(int ac, char** av) {
                 log_recv_error(icmp, count, recv_len);
                 break;
             } else if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
-                stats.packets_in_flight++;
 
                 gettimeofday(&trip_end, NULL);
                 double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;

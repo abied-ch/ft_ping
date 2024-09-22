@@ -24,7 +24,6 @@ typedef struct {
     int            sockfd;
     struct timeval start_time;
     int            errors;
-    int            packets_in_flight;
     char           local_ip[INET6_ADDRSTRLEN];
 } Stats;
 
