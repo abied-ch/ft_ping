@@ -425,6 +425,7 @@ int main(int ac, char** av) {
                     fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", stats.local_ip, count, icmp->icmp_code);
                     break;
                 }
+                break;
             }
             if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
                 gettimeofday(&trip_end, NULL);
