@@ -22,9 +22,6 @@ $(NAME): $(OBJS) $(LIBFT_OBJS)
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
-$(OBJ_DIR)/%.o: src/%.c | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
 $(OBJ_DIR)/%.o: $(SRC_DIR)%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 

@@ -1,6 +1,7 @@
 #include "ft_ping.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
+#include <bits/floatn-common.h>
 #include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
 #include <errno.h>
@@ -33,7 +34,7 @@ Stats stats = {0};
  */
 unsigned short checksum(const void* const buffer, int len) {
     const unsigned short* buf = buffer;
-    unsigned int          sum = 0;
+    unsigned int sum = 0;
 
     for (sum = 0; len > 1; len -= 2) {
         sum += *buf++;
@@ -52,8 +53,8 @@ unsigned short checksum(const void* const buffer, int len) {
  */
 void init_icmp_header(struct icmp* const icmp_header, const int seq, const char* const packet, const int packet_len) {
     icmp_header->icmp_type = ICMP_ECHO;
-    icmp_header->icmp_id   = getpid();
-    icmp_header->icmp_seq  = seq;
+    icmp_header->icmp_id = getpid();
+    icmp_header->icmp_seq = seq;
 
     /*
      * `icmp_header` and `packet` point to the same memory address, they are just _cast to different types_.
@@ -77,7 +78,7 @@ void sigint(const int sig) {
     if (stats.transmitted < 1) {
         stats.transmitted = 1;
     }
-    int            loss = 100 - (stats.received * 100) / stats.transmitted;
+    int loss = 100 - (stats.received * 100) / stats.transmitted;
     struct timeval end_time;
     gettimeofday(&end_time, NULL);
     double total_ms = (end_time.tv_sec - stats.start_time.tv_sec) * 1000.0 + (end_time.tv_usec - stats.start_time.tv_usec) / 1000.0;
@@ -162,7 +163,7 @@ int help() {
 int get_send_addr(const Args* const args, struct sockaddr_in* const send_addr) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_INET;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_RAW;
 
     int err = getaddrinfo(args->dest, NULL, &hints, &res);
@@ -174,8 +175,8 @@ int get_send_addr(const Args* const args, struct sockaddr_in* const send_addr) {
         return -1;
     }
     struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
-    send_addr->sin_family    = addr->sin_family;
-    send_addr->sin_addr      = addr->sin_addr;
+    send_addr->sin_family = addr->sin_family;
+    send_addr->sin_addr = addr->sin_addr;
     freeaddrinfo(res);
     return 0;
 }
@@ -208,11 +209,8 @@ void update_stats(const double ttl_ms) {
     stats.rtt_mdev = sum_deviation / stats.received;
 }
 
-/*
- * Initializes stats struct, I think you figured that out.
- */
 void init_stats() {
-    stats.rtt_min = INFINITY;
+    stats.rtt_min = __builtin_inff64();
     gettimeofday(&stats.start_time, NULL);
 }
 
@@ -240,27 +238,18 @@ void display_rt_stats(const bool v, const char* const ip_str, const struct icmp*
     if (v) {
         printf("ident=%d ", icmp->icmp_id);
     }
-    /**
-     * ttl: Time to live -> how many roundtrips a packet can go in the network before being discarded.
-     * Each time a router receives a packet, it subtracts one from ttl before passing it on.
-     */
     printf("ttl=%u time=%.3f ms\n", ip->ttl, rt_ms);
 }
-/**
- * Sets 1 second timeout on send & receive
- */
 int set_socket_options() {
     struct timeval timeout;
 
-    timeout.tv_sec  = 1;
-    timeout.tv_usec = 0;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 500000;
     if (setsockopt(stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
         perror("setsockopt (SO_RCVTIMEO)");
         return -1;
     }
 
-    timeout.tv_sec  = 1;
-    timeout.tv_usec = 0;
     if (setsockopt(stats.sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
         perror("setsockopt (SO_SNDTIMEO)");
         return -1;
@@ -274,12 +263,9 @@ int _abort() {
     return EXIT_FAILURE;
 }
 
-/**
- * Gets IP associated with stats.sockfd
- */
 int get_local_ip(char* const local_ip, const size_t ip_len) {
     struct sockaddr_in local_addr;
-    socklen_t          addr_len = sizeof(local_addr);
+    socklen_t addr_len = sizeof(local_addr);
 
     if (getsockname(stats.sockfd, (struct sockaddr*)&local_addr, &addr_len) == -1) {
         perror("getsockname");
@@ -314,9 +300,15 @@ void log_recv_error(const struct icmp* const icmp, const int seq, const int recv
             fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", stats.local_ip, seq, icmp->icmp_code);
             break;
         }
+    } else if (icmp->icmp_type == ICMP_TIME_EXCEEDED) {
+        if (icmp->icmp_code == ICMP_EXC_TTL) {
+            fprintf(stderr, "From %s icmp_seq=%d Time to live exceeded\n", stats.local_ip, seq);
+        } else {
+            fprintf(stderr, "From %s icmp_seq=%d Time exceeded\n", stats.local_ip, seq);
+        }
     } else if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            fprintf(stderr, "From %s icmp_seq=%d Request timed out\n", stats.local_ip, seq);
+            fprintf(stderr, "From %s icmp_seq=%d %s\n", stats.local_ip, seq, gai_strerror(errno));
         } else {
             perror("recvfrom");
         }
@@ -362,10 +354,10 @@ int main(int ac, char** av) {
     strncpy(stats.dest_host, args.dest, sizeof(stats.dest_host));
     stats.dest_host[sizeof(stats.dest_host) - 1] = '\0';
 
-    char               buffer[1024];
+    char buffer[1024];
     struct sockaddr_in recv_addr = {0};
-    socklen_t          addr_len  = sizeof(recv_addr);
-    char               ip_str[INET_ADDRSTRLEN];
+    socklen_t addr_len = sizeof(recv_addr);
+    char ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(send_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
     printf("PING %s (%s) %d(%zu) data bytes\n", args.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
 
@@ -374,8 +366,8 @@ int main(int ac, char** av) {
      * fragmenation/reassembly issues in bigger networks, I'll give it a try and come back here to change this if
      * it turns out to be bullshit.
      */
-    char         packet[sizeof(struct icmp) + PAYLOAD_SIZE] = {0};
-    struct icmp* icmp_header                                = (struct icmp*)packet;
+    char packet[sizeof(struct icmp) + PAYLOAD_SIZE] = {0};
+    struct icmp* icmp_header = (struct icmp*)packet;
     memset(packet + sizeof(struct icmp), 0x42, PAYLOAD_SIZE);
     init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
@@ -408,9 +400,9 @@ int main(int ac, char** av) {
              * words. Since 32 / 8 == 4, each word in this contet is 4 bytes, meaning that we
              * need to multiply the IHL by 4 to get the actual header length in bytes.
              */
-            struct iphdr* ip            = (struct iphdr*)buffer;
-            size_t        ip_header_len = ip->ihl << 2;
-            struct icmp*  icmp          = (struct icmp*)(buffer + ip_header_len);
+            struct iphdr* ip = (struct iphdr*)buffer;
+            size_t ip_header_len = ip->ihl << 2;
+            struct icmp* icmp = (struct icmp*)(buffer + ip_header_len);
 
             if (recv_len <= 0) {
                 log_recv_error(icmp, count, recv_len);

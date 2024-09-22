@@ -9,27 +9,27 @@
 
 #define PING_INTERVAL 1000000
 #define PACKET_SIZE 64
-#define PAYLOAD_SIZE 56
+#define PAYLOAD_SIZE 64
 #define MAX_PINGS 1024
 
 typedef struct {
-    unsigned int   transmitted;
-    unsigned int   received;
-    double         rtt_min;
-    double         rtt_avg;
-    double         rtt_max;
-    double         rtt_mdev;
-    double         rtts[MAX_PINGS];
-    char           dest_host[256];
-    int            sockfd;
+    unsigned int transmitted;
+    unsigned int received;
+    double rtt_min;
+    double rtt_avg;
+    double rtt_max;
+    double rtt_mdev;
+    double rtts[MAX_PINGS];
+    char dest_host[256];
+    int sockfd;
     struct timeval start_time;
-    int            errors;
-    char           local_ip[INET6_ADDRSTRLEN];
+    int errors;
+    char local_ip[INET6_ADDRSTRLEN];
 } Stats;
 
 typedef struct {
-    bool        v;
-    bool        h;
+    bool v;
+    bool h;
     const char* dest;
 } Args;
 
