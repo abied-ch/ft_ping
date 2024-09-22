@@ -25,13 +25,13 @@ typedef struct {
     struct timeval start_time;
     int errors;
     char local_ip[INET6_ADDRSTRLEN];
+    const char* dest;
 } Stats;
 
 typedef struct {
     bool v;
     bool h;
     int ttl;
-    const char* dest;
 } Args;
 
 typedef enum {
@@ -39,5 +39,9 @@ typedef enum {
     ICMP_SEND_FAILURE,
     ICMP_SEND_MAX_RETRIES_REACHED,
 } ICMPSendRes;
+
+int parse_args(const int ac, const char** const av, Args* const args);
+
+extern Stats stats;
 
 #endif

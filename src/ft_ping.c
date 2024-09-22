@@ -4,7 +4,6 @@
 #include <bits/floatn-common.h>
 #include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
-#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <linux/stddef.h>
@@ -95,67 +94,6 @@ void sigint(const int sig) {
 }
 
 /*
-Parses the arguments from the command line.
-* .
-* Supported options:
-*   - `-v`: verbose
-*   - `-(h|?)`: help
-* .
-* Anything without leading `-` is parsed as destination address.
-* Expects exactly `1` destination address.
-* .
-* Returns `0` on success, `-1` on error.
-*/
-int parse_args(const int ac, const char** const av, Args* const args) {
-    int i = 0;
-    args->ttl = -1;
-
-    while (++i < ac) {
-        if (av[i][0] == '-') {
-            if (!strcmp(av[i], "-v")) {
-                args->v = true;
-            } else if (!strcmp(av[i], "-h") || !strcmp(av[i], "-?")) {
-                /**
-                 * Note: oh-my-zsh interprets '?' as a single-character wildcard
-                 */
-                args->h = true;
-                return 0;
-            } else if (!strcmp(av[i], "--ttl")) {
-                if (i == ac - 1) {
-                    fprintf(stderr, "ft_ping: option requires an argument -- 'ttl'");
-                    args->h = true;
-                    return 0;
-                }
-                i++;
-                for (int c = 0; av[i][c]; ++c) {
-                    if (!isdigit(av[i][c])) {
-                        fprintf(stderr, "ft_ping: invalid argument: '%s'", av[i]);
-                        return -1;
-                    }
-                }
-                args->ttl = atoi(av[i]);
-            } else {
-                fprintf(stderr, "Unknown option: %s\n", av[i]);
-                args->h = true;
-                return 0;
-            }
-        } else {
-            if (args->dest == NULL) {
-                args->dest = av[i];
-            } else {
-                args->h = true;
-                return 0;
-            }
-        }
-    }
-    if (!args->dest && !args->h) {
-        fprintf(stderr, "ft_ping: usage error: Destination address required\n");
-        return -1;
-    }
-    return 0;
-}
-
-/*
  * Prints help message.
  * .
  * Returns `2`
@@ -181,12 +119,12 @@ int get_send_addr(const Args* const args, struct sockaddr_in* const send_addr) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_RAW;
 
-    int err = getaddrinfo(args->dest, NULL, &hints, &res);
+    int err = getaddrinfo(stats.dest, NULL, &hints, &res);
     if (err != 0) {
         if (args->v) {
             printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", stats.sockfd);
         }
-        fprintf(stderr, "ft_ping: %s: %s\n", args->dest, gai_strerror(err));
+        fprintf(stderr, "ft_ping: %s: %s\n", stats.dest, gai_strerror(err));
         return -1;
     }
     struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
@@ -369,10 +307,10 @@ int main(int ac, char** av) {
 
     if (args.v) {
         printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", stats.sockfd);
-        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args.dest);
+        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", stats.dest);
     }
 
-    strncpy(stats.dest_host, args.dest, sizeof(stats.dest_host));
+    strncpy(stats.dest_host, stats.dest, sizeof(stats.dest_host));
     stats.dest_host[sizeof(stats.dest_host) - 1] = '\0';
 
     char buffer[1024];
@@ -380,7 +318,7 @@ int main(int ac, char** av) {
     socklen_t addr_len = sizeof(recv_addr);
     char ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(send_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-    printf("PING %s (%s) %d(%zu) data bytes\n", args.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
+    printf("PING %s (%s) %d(%zu) data bytes\n", stats.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
 
     /*
      * Fill the packet with easily recognizable default value. Apparently this helps with debugging

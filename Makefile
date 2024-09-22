@@ -5,6 +5,7 @@ OBJ_DIR = obj
 SRC_DIR = src/
 
 SRCS = 	${SRC_DIR}ft_ping.c \
+		${SRC_DIR}args.c \
 
 OBJS = $(patsubst $(SRC_DIR)%.c, $(OBJ_DIR)/%.o, $(SRCS))
 
