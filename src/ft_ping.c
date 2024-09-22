@@ -315,13 +315,7 @@ int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip, size
  * Logs errors receiving icmp packets based on the icmp code
  */
 void log_recv_error(struct icmp* icmp, int seq, int recv_len) {
-    if (recv_len <= 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            fprintf(stderr, "From %s icmp_seq=%d Request timed out\n", stats.local_ip, seq);
-        } else {
-            perror("recvfrom");
-        }
-    } else if (icmp->icmp_type == ICMP_DEST_UNREACH) {
+    if (icmp->icmp_type == ICMP_DEST_UNREACH) {
         switch (icmp->icmp_code) {
         case ICMP_NET_UNREACH:
             fprintf(stderr, "From %s icmp_seq=%d Destination Network Unreachable\n", stats.local_ip, seq);
@@ -335,6 +329,12 @@ void log_recv_error(struct icmp* icmp, int seq, int recv_len) {
         default:
             fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", stats.local_ip, seq, icmp->icmp_code);
             break;
+        }
+    } else if (recv_len <= 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            fprintf(stderr, "From %s icmp_seq=%d Request timed out\n", stats.local_ip, seq);
+        } else {
+            perror("recvfrom");
         }
     }
 }
