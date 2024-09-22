@@ -275,48 +275,29 @@ int _abort() {
 }
 
 /**
- * Creates a UDP socket (faster when not sending data), asoociates it with dest address and
- * queries the system for the local IP address which would be used for communication
+ * Gets IP associated with stats.sockfd
  */
-int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip, size_t ip_len) {
-    int                sockfd;
+int get_local_ip(char* const local_ip, const size_t ip_len) {
     struct sockaddr_in local_addr;
     socklen_t          addr_len = sizeof(local_addr);
 
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        perror("socket");
-        return -1;
-    }
-
-    /**
-     * Forces the system to choose a source IP.
-     */
-    if (connect(sockfd, (const struct sockaddr*)dest_addr, sizeof(*dest_addr)) == -1) {
-        perror("connect");
-        close(sockfd);
-        return -1;
-    }
-
     if (getsockname(stats.sockfd, (struct sockaddr*)&local_addr, &addr_len) == -1) {
         perror("getsockname");
-        close(sockfd);
         return -1;
     }
 
     if (inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, ip_len) == NULL) {
         perror("inet_ntop");
-        close(sockfd);
         return -1;
     }
 
-    close(sockfd);
     return 0;
 }
 
 /**
  * Logs errors receiving icmp packets based on the icmp code
  */
-void log_recv_error(struct icmp* icmp, int seq, int recv_len) {
+void log_recv_error(const struct icmp* const icmp, const int seq, const int recv_len) {
     if (icmp->icmp_type == ICMP_DEST_UNREACH) {
         switch (icmp->icmp_code) {
         case ICMP_NET_UNREACH:
@@ -365,7 +346,7 @@ int main(int ac, char** av) {
     }
 
     char local_ip[INET_ADDRSTRLEN];
-    if (get_local_ip(&send_addr, local_ip, sizeof(local_ip)) == 0) {
+    if (get_local_ip(local_ip, sizeof(local_ip)) == 0) {
         strncpy(stats.local_ip, local_ip, sizeof(stats.local_ip));
         stats.local_ip[sizeof(stats.local_ip) - 1] = '\0';
     } else {
