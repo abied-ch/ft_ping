@@ -81,14 +81,17 @@ void sigint(const int sig) {
     int loss = 100 - (stats.received * 100) / stats.transmitted;
     struct timeval end_time;
     gettimeofday(&end_time, NULL);
-    double total_ms = (end_time.tv_sec - stats.start_time.tv_sec) * 1000.0 + (end_time.tv_usec - stats.start_time.tv_usec) / 1000.0;
+    double total_ms =
+        (end_time.tv_sec - stats.start_time.tv_sec) * 1000.0 + (end_time.tv_usec - stats.start_time.tv_usec) / 1000.0;
 
-    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", stats.dest_host, stats.transmitted, stats.received);
+    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", stats.dest_host, stats.transmitted,
+           stats.received);
     if (stats.errors != 0) {
         printf(", +%d errors", stats.errors);
     }
 
-    printf(", %d%% packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", loss, (int)total_ms, stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
+    printf(", %d%% packet loss time %dms\nrtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", loss, (int)total_ms,
+           stats.rtt_min, stats.rtt_avg, stats.rtt_max, stats.rtt_mdev);
     close(stats.sockfd);
     exit(EXIT_SUCCESS);
 }
@@ -156,7 +159,8 @@ void init_stats() {
     gettimeofday(&stats.start_time, NULL);
 }
 
-ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size, const struct sockaddr_in* const send_addr, int* const failed_attempts) {
+ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size,
+                             const struct sockaddr_in* const send_addr, int* const failed_attempts) {
     if (sendto(stats.sockfd, packet, packet_size, 0, (struct sockaddr*)send_addr, sizeof(*send_addr)) <= 0) {
         perror("sendto");
 
@@ -171,11 +175,13 @@ ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size,
     return ICMP_SEND_OK;
 }
 
-ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len) {
+ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr,
+                         socklen_t* const addr_len) {
     return recvfrom(stats.sockfd, buf, buflen, 0, (struct sockaddr*)recv_addr, addr_len);
 }
 
-void display_rt_stats(const bool v, const char* const ip_str, const struct icmp* const icmp, const struct iphdr* const ip, const double rt_ms) {
+void display_rt_stats(const bool v, const char* const ip_str, const struct icmp* const icmp,
+                      const struct iphdr* const ip, const double rt_ms) {
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, ip_str, icmp->icmp_seq);
     if (v) {
         printf("ident=%d ", icmp->icmp_id);
@@ -245,7 +251,8 @@ void log_recv_error(const struct icmp* const icmp, const int seq, const int recv
             fprintf(stderr, "From %s icmp_seq=%d Fragmentation needed\n", stats.local_ip, seq);
             break;
         default:
-            fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", stats.local_ip, seq, icmp->icmp_code);
+            fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", stats.local_ip, seq,
+                    icmp->icmp_code);
             break;
         }
     } else if (icmp->icmp_type == ICMP_TIME_EXCEEDED) {
@@ -276,7 +283,7 @@ int main(int ac, char** av) {
     }
 
     if (args.h) {
-        help();
+        return help();
     }
 
     struct sockaddr_in send_addr = {0};
@@ -355,10 +362,12 @@ int main(int ac, char** av) {
             if (recv_len <= 0) {
                 log_recv_error(icmp, count, recv_len);
                 break;
-            } else if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
+            } else if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id &&
+                       icmp->icmp_seq == count) {
 
                 gettimeofday(&trip_end, NULL);
-                double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
+                double rt_ms =
+                    (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
 
                 display_rt_stats(args.v, ip_str, icmp, ip, rt_ms);
 

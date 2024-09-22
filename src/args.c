@@ -11,6 +11,7 @@ Parses the arguments from the command line.
 * Returns `0` on success, `-1` on error.
 */
 #include "ft_ping.h"
+#include <netdb.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +51,8 @@ static int handle_ttl(Args* args, const char* arg) {
 }
 
 static const OptionEntry option_map[] = {
-    {"-v", handle_v, false}, {"-h", handle_h, false}, {"-?", handle_h, false}, {"--ttl", handle_ttl, true}, {NULL, NULL, false},
+    {"-v", handle_v, false},     {"-h", handle_h, false}, {"-?", handle_h, false},
+    {"--ttl", handle_ttl, true}, {NULL, NULL, false},
 };
 
 int help() {
@@ -63,6 +65,7 @@ int help() {
 }
 
 int parse_args(const int ac, const char** const av, Args* const args) {
+    bool extra_args = false;
     args->ttl = -1;
 
     for (int idx = 1; idx < ac; ++idx) {
@@ -86,7 +89,26 @@ int parse_args(const int ac, const char** const av, Args* const args) {
                 return result;
             }
         } else {
+            if (stats.dest != NULL) {
+                extra_args = true;
+            }
             stats.dest = av[idx];
+        }
+    }
+    if (extra_args) {
+        struct addrinfo hints, *res;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_RAW;
+
+        int err = getaddrinfo(stats.dest, NULL, &hints, &res);
+        if (err != 0) {
+            fprintf(stderr, "ft_ping: %s: %s\n", stats.dest, gai_strerror(err));
+            return -1;
+
+        } else {
+            args->h = true;
+            return 0;
         }
     }
     return 0;
