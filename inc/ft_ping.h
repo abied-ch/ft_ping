@@ -35,12 +35,6 @@ typedef struct {
     const char *dest;
 } Args;
 
-typedef enum {
-    ICMP_SEND_OK,
-    ICMP_SEND_FAILURE,
-    ICMP_SEND_MAX_RETRIES_REACHED,
-} ICMPSendRes;
-
 int parse_args(const int ac, const char **const av, Args *const args);
 int help();
 void recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
