@@ -229,18 +229,8 @@ ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size,
     return ICMP_SEND_OK;
 }
 
-ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len, const int seq, const bool v) {
-    ssize_t recv_len = recvfrom(stats.sockfd, buf, buflen, 0, (struct sockaddr*)recv_addr, addr_len);
-    if (recv_len <= 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            if (v) {
-                fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable\n", stats.local_ip, seq);
-            }
-        } else {
-            perror("recvfrom");
-        }
-    }
-    return recv_len;
+ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len) {
+    return recvfrom(stats.sockfd, buf, buflen, 0, (struct sockaddr*)recv_addr, addr_len);
 }
 
 void display_rt_stats(const bool v, const char* const ip_str, const struct icmp* const icmp, const struct iphdr* const ip, const double rt_ms) {
@@ -321,11 +311,17 @@ int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip, size
     return 0;
 }
 
-/** 
+/**
  * Logs errors receiving icmp packets based on the icmp code
- */ 
-void log_recv_error(struct icmp* icmp, int seq) {
-    if (icmp->icmp_type == ICMP_DEST_UNREACH) {
+ */
+void log_recv_error(struct icmp* icmp, int seq, int recv_len) {
+    if (recv_len <= 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            fprintf(stderr, "From %s icmp_seq=%d Request timed out\n", stats.local_ip, seq);
+        } else {
+            perror("recvfrom");
+        }
+    } else if (icmp->icmp_type == ICMP_DEST_UNREACH) {
         switch (icmp->icmp_code) {
         case ICMP_NET_UNREACH:
             fprintf(stderr, "From %s icmp_seq=%d Destination Network Unreachable\n", stats.local_ip, seq);
@@ -421,7 +417,7 @@ int main(int ac, char** av) {
         gettimeofday(&trip_begin, NULL);
 
         while (true) {
-            ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len, count, args.v);
+            ssize_t recv_len = recv_icmp_packet(buffer, sizeof(buffer), &recv_addr, &addr_len);
 
             /*
              * The Internet Header Length (IHL) field in the IP header is represented in 32-bit
@@ -432,7 +428,7 @@ int main(int ac, char** av) {
             size_t        ip_header_len = ip->ihl << 2;
             struct icmp*  icmp          = (struct icmp*)(buffer + ip_header_len);
             if (recv_len <= 0) {
-                log_recv_error(icmp, count);
+                log_recv_error(icmp, count, recv_len);
                 break;
             } else if (icmp->icmp_type == ICMP_ECHOREPLY && icmp->icmp_id == icmp_header->icmp_id && icmp->icmp_seq == count) {
                 gettimeofday(&trip_end, NULL);
