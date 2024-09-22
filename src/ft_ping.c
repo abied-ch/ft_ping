@@ -229,14 +229,50 @@ ICMPSendRes send_icmp_packet(const char* const packet, const size_t packet_size,
     return ICMP_SEND_OK;
 }
 
-int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip)
+/**
+ * Retrivees local IP for error handling (ping prints it in some error cases)
+ */
+int get_local_ip(const struct sockaddr_in* const dest_addr, char* local_ip, size_t ip_len) {
+    int                sockfd;
+    struct sockaddr_in local_addr;
+    socklen_t          addr_len = sizeof(local_addr);
+
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("socket");
+        return -1;
+    }
+
+    if (connect(sockfd, (const struct sockaddr*)dest_addr, sizeof(*dest_addr)) == -1) {
+        perror("connect");
+        close(sockfd);
+        return -1;
+    }
+
+    if (getsockname(sockfd, (struct sockaddr*)&local_addr, &addr_len) == -1) {
+        perror("getsockname");
+        close(sockfd);
+        return -1;
+    }
+
+    if (inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, ip_len) == NULL) {
+        perror("inet_ntop");
+        close(sockfd);
+        return -1;
+    }
+    close(sockfd);
+    return 0;
+}
 
 ssize_t recv_icmp_packet(char* const buf, const size_t buflen, const struct sockaddr_in* const recv_addr, socklen_t* const addr_len, const int seq, const bool v) {
     ssize_t recv_len = recvfrom(stats.sockfd, buf, buflen, 0, (struct sockaddr*)recv_addr, addr_len);
     if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             if (v) {
-		fprintf(stderr, "From 10.12.4.8 icmp_seq=%d Destination Host Unreachable", seq);
+                char local_ip[INET_ADDRSTRLEN];
+                if (get_local_ip(recv_addr, local_ip, sizeof(local_ip)) == -1) {
+                    strncpy(local_ip, "<unknown>\0", 10);
+                }
+                fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable", local_ip, seq);
             }
         } else {
             perror("recvfrom");
