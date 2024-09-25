@@ -22,8 +22,6 @@
 #include <time.h>
 #include <unistd.h>
 
-Stats g_stats = {0};
-
 // Computes IP checksum (16 bit one's complement sum), ensuring packet integrity before accepting.
 // .
 // This ensures that the checksum result will not exceed the size of a 16 bit integer by
@@ -76,7 +74,7 @@ sigint(const int sig) {
     int loss = 100 - (g_stats.rcvd * 100) / g_stats.sent;
     struct timeval end;
     gettimeofday(&end, NULL);
-    double tot_ms = (end.tv_sec - g_stats.start.tv_sec) * 1000.0 + (end.tv_usec - g_stats.start.tv_usec) / 1000.0;
+    double tot_ms = (end.tv_sec - g_stats.start_time->tv_sec) * 1000.0 + (end.tv_usec - g_stats.start_time->tv_usec) / 1000.0;
 
     printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.host, g_stats.sent, g_stats.rcvd);
     if (g_stats.errs != 0) {
@@ -140,7 +138,7 @@ update_stats(const struct timeval *const trip_begin) {
 static void
 init_stats() {
     g_stats.rtt_min = __builtin_inff64();
-    gettimeofday(&g_stats.start, NULL);
+    gettimeofday(g_stats.start_time, NULL);
 }
 
 static int
@@ -225,16 +223,6 @@ get_local_ip(char *ip, size_t ip_size) {
 
     freeifaddrs(ifaddr);
     return -1;
-}
-
-static int
-init_socket() {
-    g_stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-    if (g_stats.sockfd == -1) {
-        perror("socket");
-        return -1;
-    }
-    return 0;
 }
 
 static void
@@ -342,9 +330,9 @@ ping(const Args *const args, struct sockaddr_in *const send_addr) {
 int
 main(int ac, char **av) {
     Args args = {0};
-    if (init_socket() == -1) {
-        return EXIT_FAILURE;
-    }
+    // if (init_socket(&g_stats.sockfd) == -1) {
+    //     return EXIT_FAILURE;
+    // }
 
     if (parse_args(ac, (const char **)av, &args) == -1) {
         close(g_stats.sockfd);

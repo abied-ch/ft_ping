@@ -1,11 +1,13 @@
 #include "ft_ping.h"
+#include <bits/types/struct_iovec.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef int (*option_handler)(Args *const, const char *);
+typedef Result (*option_handler)(Args *const, const char *);
 
 typedef struct {
     const char *option;
@@ -13,40 +15,39 @@ typedef struct {
     bool requires_arg;
 } OptionEntry;
 
-static int
-_handle_v(Args *const args, const char *const arg) {
+static Result
+handle_v(Args *const args, const char *const arg) {
     (void)arg;
     args->v = true;
-    return 0;
+    return ok(NULL);
 }
 
-static int
-_handle_h(Args *const args, const char *const arg) {
+static Result
+handle_h(Args *const args, const char *const arg) {
     (void)arg;
     args->h = true;
-    return 0;
+    return ok(NULL);
 }
 
-static int
-_handle_ttl(Args *args, const char *arg) {
+static Result
+handle_ttl(Args *args, const char *arg) {
     char *endptr;
     long val = strtol(arg, &endptr, 10);
 
     if (*endptr != '\0' || val <= 0 || val > 255) {
-        fprintf(stderr, "ft_ping: invalid argument: '%s'\n", arg);
-        return -1;
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
     }
 
     args->ttl = (int)val;
-    return 0;
+    return ok(NULL);
 }
 
 static const OptionEntry option_map[] = {
-    {"-v",    _handle_v,   false},
-    {"-h",    _handle_h,   false},
-    {"-?",    _handle_h,   false},
-    {"--ttl", _handle_ttl, true },
-    {NULL,    NULL,        false},
+    {"-v",    handle_v,   false},
+    {"-h",    handle_h,   false},
+    {"-?",    handle_h,   false},
+    {"--ttl", handle_ttl, true },
+    {NULL,    NULL,       false},
 };
 
 int
@@ -66,8 +67,8 @@ help() {
 //      -> Print help message
 // - Else:
 //      -> Print error message alone
-int
-_handle_extra_arg(Args *const args) {
+static Result
+handle_extra_arg(Args *const args) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -75,19 +76,25 @@ _handle_extra_arg(Args *const args) {
 
     int err = getaddrinfo(args->dest, NULL, &hints, &res);
     if (err != 0) {
-        fprintf(stderr, "ft_ping: %s: %s\n", args->dest, gai_strerror(err));
         freeaddrinfo(res);
-        return -1;
+        return err_fmt(5, "ft_ping: ", args->dest, ": ", gai_strerror(err), "\n");
     } else {
         args->h = true;
+        free(args);
         freeaddrinfo(res);
-        return 0;
+        return ok(NULL);
     }
+    free(args);
     freeaddrinfo(res);
 }
 
-int
-parse_args(const int ac, const char **const av, Args *const args) {
+Result
+parse_args(const int ac, char **av) {
+    Args *args = calloc(sizeof(Args), 1);
+    if (!args) {
+        return err(strerror(errno));
+    }
+
     bool extra_arg = false;
     args->ttl = -1;
 
@@ -98,18 +105,18 @@ parse_args(const int ac, const char **const av, Args *const args) {
                 entry++;
             }
             if (entry->option == NULL) {
-                fprintf(stderr, "ft_ping: invalid option -- '%s'\n", av[idx]);
-                return -1;
+                free(args);
+                return err_fmt(3, "ft_ping: invalid option -- '", av[idx], "'\n");
             }
             if (entry->requires_arg) {
                 if (++idx >= ac) {
-                    fprintf(stderr, "ft_ping: option requires an argument -- 'ttl'");
-                    return -1;
+                    free(args);
+                    return err("ft_ping: option requires an argument -- 'ttl'\n");
                 }
             }
-            int result = entry->handler(args, entry->requires_arg ? av[idx] : NULL);
-            if (result != 0) {
-                return result;
+            Result res = entry->handler(args, entry->requires_arg ? av[idx] : NULL);
+            if (res.type == ERR) {
+                return res;
             }
         } else {
             if (args->dest != NULL) {
@@ -119,7 +126,12 @@ parse_args(const int ac, const char **const av, Args *const args) {
         }
     }
     if (extra_arg) {
-        return _handle_extra_arg(args);
+        return handle_extra_arg(args);
     }
-    return 0;
+
+    if (!args->dest) {
+        return err("ft_ping: usage error: Destination address required");
+    }
+
+    return ok(args);
 }

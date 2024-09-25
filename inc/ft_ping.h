@@ -16,17 +16,17 @@
 #define MAX_PINGS 1024
 
 typedef struct {
-    unsigned int sent;
-    unsigned int rcvd;
+    int errs;
+    int sockfd;
+    char host[256];
     double rtt_min;
     double rtt_avg;
     double rtt_max;
     double rtt_mdev;
+    unsigned int sent;
+    unsigned int rcvd;
+    struct timeval *start_time;
     double rtts[MAX_PINGS];
-    char host[256];
-    int sockfd;
-    struct timeval start;
-    int errs;
     char local_ip[INET6_ADDRSTRLEN];
 } Stats;
 
@@ -40,17 +40,45 @@ typedef struct {
 typedef struct {
 
     struct {
-        char *buf;
-        size_t buflen;
-    };
+        char *content;
+        size_t len;
+    } buf;
 
     struct sockaddr_in addr;
     socklen_t len;
 } Recv;
 
-int parse_args(const int ac, const char **const av, Args *const args);
+typedef enum {
+    OK = 0,
+    ERR = -1,
+} ResultType;
+
+typedef union {
+    const void *val;
+    char *err;
+} ResultValue;
+
+typedef struct {
+    ResultType type;
+    ResultValue val;
+    bool on_heap;
+} Result;
+
+// args.c
+Result parse_args(const int ac, char **av);
 int help();
+
+// error.c
 void recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
+
+// socket.c
+Result init_socket(int *const sockfd);
+
+// result.c
+Result ok(void *val);
+Result err(char *err);
+Result err_fmt(const int n_strs, ...);
+void err_unwrap(Result err);
 
 extern Stats g_stats;
 
