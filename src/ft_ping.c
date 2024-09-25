@@ -218,8 +218,6 @@ get_local_ip(char *ip, size_t ip_size) {
                     printf("Found IP: %s for interface: %s\n", ip, ifa->ifa_name);
                     freeifaddrs(ifaddr);
                     return 0;
-                } else {
-                    printf("IP address too long for buffer\n");
                 }
             }
         }
