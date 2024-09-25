@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
 Stats g_stats;
 
@@ -35,5 +36,12 @@ main(int ac, char **av) {
     }
 
     Args *args = (Args *)res.val.val;
+
+    if (args->h) {
+        close(g_stats.sockfd);
+        free(args);
+        return help();
+    }
+
     free(args);
 }

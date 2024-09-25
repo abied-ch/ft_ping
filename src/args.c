@@ -74,18 +74,17 @@ handle_extra_arg(Args *const args) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_RAW;
 
-    int err = getaddrinfo(args->dest, NULL, &hints, &res);
-    if (err != 0) {
+    int e = getaddrinfo(args->dest, NULL, &hints, &res);
+    if (e != 0) {
         freeaddrinfo(res);
-        return err_fmt(5, "ft_ping: ", args->dest, ": ", gai_strerror(err), "\n");
+        return err_fmt(5, "ft_ping: ", args->dest, ": ", gai_strerror(e), "\n");
     } else {
         args->h = true;
-        free(args);
         freeaddrinfo(res);
-        return ok(NULL);
+        return ok(args);
     }
-    free(args);
     freeaddrinfo(res);
+    return ok(args);
 }
 
 Result
