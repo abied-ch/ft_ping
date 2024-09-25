@@ -82,6 +82,7 @@ void err_unwrap(Result err);
 
 // address.c
 Result get_send_addr(const Args *const args);
+void init_local_ip();
 
 extern Stats g_stats;
 

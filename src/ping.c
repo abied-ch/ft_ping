@@ -61,6 +61,16 @@ main(int ac, char **av) {
 
     struct sockaddr_in *send_addr = (struct sockaddr_in *)res.val.val;
 
+    init_local_ip();
+
+    if (args->v) {
+        printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
+        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args->dest);
+    }
+
+    strncpy(g_stats.host, args->dest, sizeof(g_stats.host));
+    g_stats.host[sizeof(g_stats.host) - 1] = '\0';
+
     close(g_stats.sockfd);
     free(args);
     free(send_addr);

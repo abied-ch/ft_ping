@@ -225,16 +225,6 @@ get_local_ip(char *ip, size_t ip_size) {
     return -1;
 }
 
-static void
-init_local_ip(char *local_ip, size_t ip_len) {
-    if (get_local_ip(local_ip, ip_len) == 0) {
-        strncpy(g_stats.local_ip, local_ip, sizeof(g_stats.local_ip));
-        g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
-    } else {
-        strncpy(g_stats.local_ip, "0.0.0.0", sizeof(g_stats.local_ip));
-        g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
-    }
-}
 
 static bool
 is_unexpected_packet(struct icmp *icmp, struct icmp *icmp_header, const int count) {
