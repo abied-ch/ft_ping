@@ -203,6 +203,22 @@ init_socket() {
     return 0;
 }
 
+void
+init_local_ip(char *local_ip) {
+    if (get_local_ip(local_ip, sizeof(local_ip)) == 0) {
+        strncpy(g_stats.local_ip, local_ip, sizeof(g_stats.local_ip));
+        g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
+    } else {
+        fprintf(stderr, "Failed to determine local IP address, using 0.0.0.0 as a placeholder.");
+        strncpy(g_stats.local_ip, "0.0.0.0", sizeof(g_stats.local_ip));
+        g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
+    }
+}
+
+int receive() {
+    
+}
+
 int
 main(int ac, char **av) {
     Args args = {0};
@@ -226,14 +242,7 @@ main(int ac, char **av) {
     }
 
     char local_ip[INET_ADDRSTRLEN];
-    if (get_local_ip(local_ip, sizeof(local_ip)) == 0) {
-        strncpy(g_stats.local_ip, local_ip, sizeof(g_stats.local_ip));
-        g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
-    } else {
-        fprintf(stderr, "Failed to determine local IP address, using 0.0.0.0 as a placeholder.");
-        strncpy(g_stats.local_ip, "0.0.0.0", sizeof(g_stats.local_ip));
-        g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
-    }
+    init_local_ip(local_ip);
 
     if (args.v) {
         printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
@@ -276,9 +285,6 @@ main(int ac, char **av) {
         while (true) {
             ssize_t recv_len = recvfrom(g_stats.sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recv_addr, &addr_len);
 
-            // The Internet Header Length (IHL) field in the IP header is represented in 32-bit
-            // words. Since 32 / 8 == 4, each word in this contet is 4 bytes, meaning that we
-            // need to multiply the IHL by 4 to get the actual header length in bytes.
             struct iphdr *ip = (struct iphdr *)buf;
             size_t ip_header_len = ip->ihl << 2;
             struct icmp *icmp = (struct icmp *)(buf + ip_header_len);
@@ -286,32 +292,32 @@ main(int ac, char **av) {
             if (recv_len <= 0) {
                 recv_error(icmp, count, recv_len);
                 break;
-            } else {
-                if (icmp->icmp_type != ICMP_ECHOREPLY) {
-                    break;
-                } else if (icmp->icmp_id != icmp_header->icmp_id) {
-                    break;
-                } else if (icmp->icmp_seq == count) {
-                    break;
-                }
-                gettimeofday(&trip_end, NULL);
-                double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
-
-                display_rt_stats(args.v, ip_str, icmp, ip, rt_ms);
-
-                if (g_stats.rcvd < MAX_PINGS) {
-                    g_stats.rtts[g_stats.rcvd] = rt_ms;
-                }
-
-                update_stats(rt_ms);
-
-                break;
             }
-        }
+            if (icmp->icmp_type != ICMP_ECHOREPLY) {
+                continue;
+            }
+            if (icmp->icmp_id != icmp_header->icmp_id) {
+                continue;
+            }
+            if (icmp->icmp_seq != count) {
+                continue;
+            }
 
+            gettimeofday(&trip_end, NULL);
+            double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
+
+            display_rt_stats(args.v, ip_str, icmp, ip, rt_ms);
+
+            if (g_stats.rcvd < MAX_PINGS) {
+                g_stats.rtts[g_stats.rcvd] = rt_ms;
+            }
+
+            update_stats(rt_ms);
+
+            break;
+        }
         usleep(PING_INTERVAL);
     }
-
     close(g_stats.sockfd);
     return EXIT_SUCCESS;
 }
