@@ -289,7 +289,7 @@ receive_packet(char *const buf, const int buflen, Recv *recv, const int count, s
 
 static int
 ping(const Args *const args, struct sockaddr_in *const send_addr) {
-
+    
     char buf[1024];
     struct sockaddr_in recv_addr = {0};
     socklen_t addr_len = sizeof(recv_addr);
