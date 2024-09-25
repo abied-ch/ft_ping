@@ -14,6 +14,8 @@ init(const int ac, char **av) {
     Result res;
     Stats g_stats = {0};
 
+    g_stats.sockfd = -1;
+
     if (gettimeofday(g_stats.start_time, NULL) == -1) {
         return err(strerror(errno));
     }
@@ -32,6 +34,9 @@ main(int ac, char **av) {
     res = init(ac, av);
     if (res.type == ERR) {
         err_unwrap(res);
+        if (g_stats.sockfd != -1) {
+            close(g_stats.sockfd);
+        }
         return EXIT_FAILURE;
     }
 
