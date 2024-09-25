@@ -28,6 +28,10 @@ Stats g_stats = {0};
 // This ensures that the checksum result will not exceed the size of a 16 bit integer by
 // wrapping around carry instead of making the number outgrow its bounds.
 // .
+// The sender calculates the checksum with '0' as a placeholder value in the checksum field. The receiver then
+// calculates it including the checksum sent by the sender. Its one's complement sum is expected to be '0' -
+// packets where this calculation fails are discarded.
+// .
 // https://web.archive.org/web/20020916085726/http://www.netfor2.com/checksum.html
 unsigned short
 checksum(const void *const buffer, int len) {
@@ -190,14 +194,22 @@ get_local_ip(char *const local_ip, const size_t ip_len) {
 }
 
 int
-main(int ac, char **av) {
+init_socket() {
     g_stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (g_stats.sockfd == -1) {
         perror("socket");
+        return -1;
+    }
+    return 0;
+}
+
+int
+main(int ac, char **av) {
+    Args args = {0};
+    if (init_socket() == -1) {
         return EXIT_FAILURE;
     }
 
-    Args args = {0};
     if (parse_args(ac, (const char **)av, &args) == -1) {
         close(g_stats.sockfd);
         return EXIT_FAILURE;
