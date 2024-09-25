@@ -1,8 +1,11 @@
 #include "ft_ping.h"
 #include <errno.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -48,5 +51,17 @@ main(int ac, char **av) {
         return help();
     }
 
+    res = get_send_addr(args);
+    if (res.type == ERR) {
+        err_unwrap(res);
+        close(g_stats.sockfd);
+        free(args);
+        return EXIT_FAILURE;
+    }
+
+    struct sockaddr_in *send_addr = (struct sockaddr_in *)res.val.val;
+
+    close(g_stats.sockfd);
     free(args);
+    free(send_addr);
 }

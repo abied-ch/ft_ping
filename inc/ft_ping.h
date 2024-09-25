@@ -80,6 +80,9 @@ Result err(char *err);
 Result err_fmt(const int n_strs, ...);
 void err_unwrap(Result err);
 
+// address.c
+Result get_send_addr(const Args *const args);
+
 extern Stats g_stats;
 
 #endif
