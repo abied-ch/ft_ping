@@ -76,11 +76,14 @@ _handle_extra_arg(Args *const args) {
     int err = getaddrinfo(args->dest, NULL, &hints, &res);
     if (err != 0) {
         fprintf(stderr, "ft_ping: %s: %s\n", args->dest, gai_strerror(err));
+        freeaddrinfo(res);
         return -1;
     } else {
         args->h = true;
+        freeaddrinfo(res);
         return 0;
     }
+    freeaddrinfo(res);
 }
 
 int
