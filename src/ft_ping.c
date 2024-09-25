@@ -256,9 +256,37 @@ is_unexpected_packet(struct icmp *icmp, struct icmp *icmp_header, const int coun
 }
 
 static int
+receive(char *const buf, int buflen, struct sockaddr_in recv_addr, socklen_t addr_len, const int count, struct icmp *icmp_header,
+        struct timeval trip_begin, const Args *const args, char *ip_str) {
+    while (true) {
+        ssize_t recv_len = recvfrom(g_stats.sockfd, buf, buflen, 0, (struct sockaddr *)&recv_addr, &addr_len);
+
+        struct iphdr *ip = (struct iphdr *)buf;
+        size_t ip_header_len = ip->ihl << 2;
+        struct icmp *icmp = (struct icmp *)(buf + ip_header_len);
+
+        if (recv_len <= 0) {
+            recv_error(icmp, count, recv_len);
+            return 0;
+        }
+
+        if (is_unexpected_packet(icmp, icmp_header, count)) {
+            continue;
+        }
+
+        double rt_ms = update_stats(&trip_begin);
+        if ((int)rt_ms == -1) {
+            close(g_stats.sockfd);
+            return -1;
+        }
+        display_rt_stats(args->v, ip_str, icmp, ip, rt_ms);
+
+        return 0;
+    }
+}
+
+static int
 ping(const Args *const args, struct sockaddr_in *send_addr) {
-    strncpy(g_stats.host, args->dest, sizeof(g_stats.host));
-    g_stats.host[sizeof(g_stats.host) - 1] = '\0';
 
     char buf[1024];
     struct sockaddr_in recv_addr = {0};
@@ -293,31 +321,32 @@ ping(const Args *const args, struct sockaddr_in *send_addr) {
             return EXIT_FAILURE;
         }
 
-        while (true) {
-            ssize_t recv_len = recvfrom(g_stats.sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recv_addr, &addr_len);
-
-            struct iphdr *ip = (struct iphdr *)buf;
-            size_t ip_header_len = ip->ihl << 2;
-            struct icmp *icmp = (struct icmp *)(buf + ip_header_len);
-
-            if (recv_len <= 0) {
-                recv_error(icmp, count, recv_len);
-                break;
-            }
-
-            if (is_unexpected_packet(icmp, icmp_header, count)) {
-                continue;
-            }
-
-            double rt_ms = update_stats(&trip_begin);
-            if ((int)rt_ms == -1) {
-                close(g_stats.sockfd);
-                return EXIT_FAILURE;
-            }
-            display_rt_stats(args->v, ip_str, icmp, ip, rt_ms);
-
-            break;
+        if (receive(buf, sizeof(buf), recv_addr, addr_len, count, icmp_header, trip_begin, args, ip_str) == -1) {
+            return EXIT_FAILURE;
         }
+        // ssize_t recv_len = recvfrom(g_stats.sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recv_addr, &addr_len);
+
+        // struct iphdr *ip = (struct iphdr *)buf;
+        // size_t ip_header_len = ip->ihl << 2;
+        // struct icmp *icmp = (struct icmp *)(buf + ip_header_len);
+
+        // if (recv_len <= 0) {
+        //     recv_error(icmp, count, recv_len);
+        //     break;
+        // }
+
+        // if (is_unexpected_packet(icmp, icmp_header, count)) {
+        //     continue;
+        // }
+
+        // double rt_ms = update_stats(&trip_begin);
+        // if ((int)rt_ms == -1) {
+        //     close(g_stats.sockfd);
+        //     return EXIT_FAILURE;
+        // }
+        // display_rt_stats(args->v, ip_str, icmp, ip, rt_ms);
+
+        // break;
         usleep(PING_INTERVAL);
     }
     close(g_stats.sockfd);
@@ -353,6 +382,9 @@ main(int ac, char **av) {
         printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
         printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args.dest);
     }
+
+    strncpy(g_stats.host, args.dest, sizeof(g_stats.host));
+    g_stats.host[sizeof(g_stats.host) - 1] = '\0';
 
     if (ping(&args, &send_addr) == -1) {
         return EXIT_FAILURE;
