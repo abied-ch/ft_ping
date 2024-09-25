@@ -4,6 +4,7 @@
 #include <bits/floatn-common.h>
 #include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
+#include <ifaddrs.h>
 #include <limits.h>
 #include <linux/stddef.h>
 #include <math.h>
@@ -33,7 +34,7 @@ Stats g_stats = {0};
 // packets where this calculation fails are discarded.
 // .
 // https://web.archive.org/web/20020916085726/http://www.netfor2.com/checksum.html
-unsigned short
+static unsigned short
 checksum(const void *const buffer, int len) {
     const unsigned short *buf = buffer;
     unsigned int sum = 0;
@@ -51,7 +52,7 @@ checksum(const void *const buffer, int len) {
     return ~sum;
 }
 
-void
+static void
 init_icmp_header(struct icmp *const icmp_header, const int seq, const char *const packet, const int packet_len) {
     icmp_header->icmp_type = ICMP_ECHO;
     icmp_header->icmp_id = getpid();
@@ -64,7 +65,7 @@ init_icmp_header(struct icmp *const icmp_header, const int seq, const char *cons
     icmp_header->icmp_cksum = checksum(packet, packet_len);
 }
 
-void
+static void
 sigint(const int sig) {
     if (sig != SIGINT) {
         return;
@@ -88,7 +89,7 @@ sigint(const int sig) {
     exit(EXIT_SUCCESS);
 }
 
-int
+static int
 get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
@@ -110,12 +111,19 @@ get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     return 0;
 }
 
-void
-update_stats(const double ttl_ms) {
+static double
+update_stats(const struct timeval *const trip_begin) {
+    struct timeval trip_end;
+
+    if (gettimeofday(&trip_end, NULL) == -1) {
+        return -1;
+    }
+    const double rt_ms = (trip_end.tv_sec - trip_begin->tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin->tv_usec) / 1000.0;
+
     g_stats.rcvd++;
-    g_stats.rtt_min = fmin(g_stats.rtt_min, ttl_ms);
-    g_stats.rtt_max = fmax(g_stats.rtt_max, ttl_ms);
-    g_stats.rtt_avg = ((g_stats.rtt_avg * (g_stats.rcvd - 1)) + ttl_ms) / g_stats.rcvd;
+    g_stats.rtt_min = fmin(g_stats.rtt_min, rt_ms);
+    g_stats.rtt_max = fmax(g_stats.rtt_max, rt_ms);
+    g_stats.rtt_avg = ((g_stats.rtt_avg * (g_stats.rcvd - 1)) + rt_ms) / g_stats.rcvd;
 
     double sum_deviation = 0.0;
 
@@ -123,15 +131,19 @@ update_stats(const double ttl_ms) {
         sum_deviation += fabs(g_stats.rtts[i] - g_stats.rtt_avg);
     }
     g_stats.rtt_mdev = sum_deviation / g_stats.rcvd;
+    if (g_stats.rcvd < MAX_PINGS) {
+        g_stats.rtts[g_stats.rcvd] = rt_ms;
+    }
+    return rt_ms;
 }
 
-void
+static void
 init_stats() {
     g_stats.rtt_min = __builtin_inff64();
     gettimeofday(&g_stats.start, NULL);
 }
 
-int
+static int
 send_icmp_packet(const char *const packet, const size_t packet_size, const struct sockaddr_in *const send_addr) {
     if (sendto(g_stats.sockfd, packet, packet_size, 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
         perror("sendto");
@@ -141,7 +153,7 @@ send_icmp_packet(const char *const packet, const size_t packet_size, const struc
     return 0;
 }
 
-void
+static void
 display_rt_stats(const bool v, const char *const ip_str, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, ip_str, icmp->icmp_seq);
     if (v) {
@@ -150,8 +162,8 @@ display_rt_stats(const bool v, const char *const ip_str, const struct icmp *cons
     printf("ttl=%u time=%.3f ms\n", ip->ttl, ms);
 }
 
-int
-set_socket_options(Args *args) {
+static int
+set_socket_options(const Args *const args) {
     struct timeval timeout;
 
     timeout.tv_sec = 0;
@@ -175,25 +187,45 @@ set_socket_options(Args *args) {
     return 0;
 }
 
-int
-get_local_ip(char *const local_ip, const size_t ip_len) {
-    struct sockaddr_in local_addr;
-    socklen_t addr_len = sizeof(local_addr);
+static int
+get_local_ip(char *ip, size_t ip_size) {
+    struct ifaddrs *ifaddr, *ifa;
+    int family, s;
+    char host[NI_MAXHOST];
 
-    if (getsockname(g_stats.sockfd, (struct sockaddr *)&local_addr, &addr_len) == -1) {
-        perror("getsockname");
+    if (getifaddrs(&ifaddr) == -1) {
+        perror("getifaddrs");
         return -1;
     }
 
-    if (inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, ip_len) == NULL) {
-        perror("inet_ntop");
-        return -1;
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        family = ifa->ifa_addr->sa_family;
+
+        if (family == AF_INET) {
+            s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+            if (s != 0) {
+                printf("getnameinfo() failed: %s\n", gai_strerror(s));
+                continue;
+            }
+
+            // Skips loopback interface
+            if (strcmp(ifa->ifa_name, "lo") != 0) {
+                strncpy(ip, host, ip_size);
+                ip[ip_size - 1] = '\0';
+                freeifaddrs(ifaddr);
+                return 0;
+            }
+        }
     }
 
-    return 0;
+    freeifaddrs(ifaddr);
+    return -1;
 }
 
-int
+static int
 init_socket() {
     g_stats.sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (g_stats.sockfd == -1) {
@@ -203,13 +235,12 @@ init_socket() {
     return 0;
 }
 
-void
+static void
 init_local_ip(char *local_ip) {
     if (get_local_ip(local_ip, sizeof(local_ip)) == 0) {
         strncpy(g_stats.local_ip, local_ip, sizeof(g_stats.local_ip));
         g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
     } else {
-        fprintf(stderr, "Failed to determine local IP address, using 0.0.0.0 as a placeholder.");
         strncpy(g_stats.local_ip, "0.0.0.0", sizeof(g_stats.local_ip));
         g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
     }
@@ -222,6 +253,75 @@ is_unexpected_packet(struct icmp *icmp, struct icmp *icmp_header, const int coun
     const bool seq_matches = icmp->icmp_seq == count;
 
     return !is_echo_reply || !id_matches || !seq_matches;
+}
+
+static int
+ping(const Args *const args, struct sockaddr_in *send_addr) {
+    strncpy(g_stats.host, args->dest, sizeof(g_stats.host));
+    g_stats.host[sizeof(g_stats.host) - 1] = '\0';
+
+    char buf[1024];
+    struct sockaddr_in recv_addr = {0};
+    socklen_t addr_len = sizeof(recv_addr);
+    char ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &(send_addr->sin_addr), ip_str, INET_ADDRSTRLEN);
+    printf("PING %s (%s) %d(%zu) data bytes\n", args->dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
+
+    char packet[sizeof(struct icmp) + PAYLOAD_SIZE] = {0};
+    struct icmp *icmp_header = (struct icmp *)packet;
+    memset(packet + sizeof(struct icmp), 0x42, PAYLOAD_SIZE);
+    init_icmp_header(icmp_header, 0, packet, sizeof(packet));
+
+    init_stats();
+    if (set_socket_options(args) == -1) {
+        close(g_stats.sockfd);
+        return EXIT_FAILURE;
+    }
+
+    signal(SIGINT, sigint);
+
+    for (int count = 1; count; count++) {
+        init_icmp_header(icmp_header, count, packet, sizeof(packet));
+
+        if (send_icmp_packet(packet, sizeof(packet), send_addr) == -1) {
+            continue;
+        }
+
+        struct timeval trip_begin;
+        if (gettimeofday(&trip_begin, NULL) == -1) {
+            close(g_stats.sockfd);
+            return EXIT_FAILURE;
+        }
+
+        while (true) {
+            ssize_t recv_len = recvfrom(g_stats.sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recv_addr, &addr_len);
+
+            struct iphdr *ip = (struct iphdr *)buf;
+            size_t ip_header_len = ip->ihl << 2;
+            struct icmp *icmp = (struct icmp *)(buf + ip_header_len);
+
+            if (recv_len <= 0) {
+                recv_error(icmp, count, recv_len);
+                break;
+            }
+
+            if (is_unexpected_packet(icmp, icmp_header, count)) {
+                continue;
+            }
+
+            double rt_ms = update_stats(&trip_begin);
+            if ((int)rt_ms == -1) {
+                close(g_stats.sockfd);
+                return EXIT_FAILURE;
+            }
+            display_rt_stats(args->v, ip_str, icmp, ip, rt_ms);
+
+            break;
+        }
+        usleep(PING_INTERVAL);
+    }
+    close(g_stats.sockfd);
+    return EXIT_SUCCESS;
 }
 
 int
@@ -254,70 +354,7 @@ main(int ac, char **av) {
         printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args.dest);
     }
 
-    strncpy(g_stats.host, args.dest, sizeof(g_stats.host));
-    g_stats.host[sizeof(g_stats.host) - 1] = '\0';
-
-    char buf[1024];
-    struct sockaddr_in recv_addr = {0};
-    socklen_t addr_len = sizeof(recv_addr);
-    char ip_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(send_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-    printf("PING %s (%s) %d(%zu) data bytes\n", args.dest, ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
-
-    char packet[sizeof(struct icmp) + PAYLOAD_SIZE] = {0};
-    struct icmp *icmp_header = (struct icmp *)packet;
-    memset(packet + sizeof(struct icmp), 0x42, PAYLOAD_SIZE);
-    init_icmp_header(icmp_header, 0, packet, sizeof(packet));
-
-    init_stats();
-    if (set_socket_options(&args) == -1) {
-        close(g_stats.sockfd);
+    if (ping(&args, &send_addr) == -1) {
         return EXIT_FAILURE;
     }
-
-    signal(SIGINT, sigint);
-
-    for (int count = 1; count; count++) {
-        init_icmp_header(icmp_header, count, packet, sizeof(packet));
-
-        if (send_icmp_packet(packet, sizeof(packet), &send_addr) == -1) {
-            continue;
-        }
-
-        struct timeval trip_begin, trip_end;
-        gettimeofday(&trip_begin, NULL);
-
-        while (true) {
-            ssize_t recv_len = recvfrom(g_stats.sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recv_addr, &addr_len);
-
-            struct iphdr *ip = (struct iphdr *)buf;
-            size_t ip_header_len = ip->ihl << 2;
-            struct icmp *icmp = (struct icmp *)(buf + ip_header_len);
-
-            if (recv_len <= 0) {
-                recv_error(icmp, count, recv_len);
-                break;
-            }
-
-            if (is_unexpected_packet(icmp, icmp_header, count)) {
-                continue;
-            }
-
-            gettimeofday(&trip_end, NULL);
-            double rt_ms = (trip_end.tv_sec - trip_begin.tv_sec) * 1000.0 + (trip_end.tv_usec - trip_begin.tv_usec) / 1000.0;
-
-            display_rt_stats(args.v, ip_str, icmp, ip, rt_ms);
-
-            if (g_stats.rcvd < MAX_PINGS) {
-                g_stats.rtts[g_stats.rcvd] = rt_ms;
-            }
-
-            update_stats(rt_ms);
-
-            break;
-        }
-        usleep(PING_INTERVAL);
-    }
-    close(g_stats.sockfd);
-    return EXIT_SUCCESS;
 }
