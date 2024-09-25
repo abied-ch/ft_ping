@@ -1,11 +1,13 @@
 #ifndef FT_PING_H
 #define FT_PING_H
 
+#include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <netinet/ip_icmp.h>
 #include <stdbool.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 
 #define PING_INTERVAL 1000000
@@ -34,6 +36,17 @@ typedef struct {
     int ttl;
     const char *dest;
 } Args;
+
+typedef struct {
+
+    struct {
+        char *buf;
+        size_t buflen;
+    };
+
+    struct sockaddr_in addr;
+    socklen_t len;
+} Recv;
 
 int parse_args(const int ac, const char **const av, Args *const args);
 int help();

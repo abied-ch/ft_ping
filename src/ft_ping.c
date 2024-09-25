@@ -255,11 +255,13 @@ is_unexpected_packet(struct icmp *icmp, struct icmp *icmp_header, const int coun
     return !is_echo_reply || !id_matches || !seq_matches;
 }
 
+// Try to receive packets from the sockfd until we get the one we are expecting
 static int
-receive_packet(char *const buf, const int buflen, const struct sockaddr_in recv_addr, socklen_t addr_len, const int count,
-               struct icmp *const icmp_header, const struct timeval trip_begin, const Args *const args, const char *const ip_str) {
+receive_packet(char *const buf, const int buflen, Recv *recv, const int count, struct icmp *const icmp_header,
+               const struct timeval trip_begin, const Args *const args, const char *const ip_str) {
+
     while (true) {
-        ssize_t recv_len = recvfrom(g_stats.sockfd, buf, buflen, 0, (struct sockaddr *)&recv_addr, &addr_len);
+        ssize_t recv_len = recvfrom(g_stats.sockfd, buf, buflen, 0, (struct sockaddr *)&recv->addr, &recv->len);
 
         struct iphdr *ip = (struct iphdr *)buf;
         size_t ip_header_len = ip->ihl << 2;
@@ -322,7 +324,11 @@ ping(const Args *const args, struct sockaddr_in *const send_addr) {
             return EXIT_FAILURE;
         }
 
-        if (receive_packet(buf, sizeof(buf), recv_addr, addr_len, count, icmp_header, trip_begin, args, ip_str) == -1) {
+        Recv recv = {
+            {buf, sizeof(buf)},
+            recv_addr, addr_len
+        };
+        if (receive_packet(buf, sizeof(buf), &recv, count, icmp_header, trip_begin, args, ip_str) == -1) {
             return EXIT_FAILURE;
         }
         usleep(PING_INTERVAL);
