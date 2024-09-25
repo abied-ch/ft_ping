@@ -211,12 +211,16 @@ get_local_ip(char *ip, size_t ip_size) {
                 continue;
             }
 
-            // Skips loopback interface
+            // Skip loopback interface
             if (strcmp(ifa->ifa_name, "lo") != 0) {
-                strncpy(ip, host, ip_size);
-                ip[ip_size - 1] = '\0';
-                freeifaddrs(ifaddr);
-                return 0;
+                if (strlen(host) < ip_size) {
+                    strncpy(ip, host, ip_size);
+                    printf("Found IP: %s for interface: %s\n", ip, ifa->ifa_name);
+                    freeifaddrs(ifaddr);
+                    return 0;
+                } else {
+                    printf("IP address too long for buffer\n");
+                }
             }
         }
     }
@@ -236,8 +240,8 @@ init_socket() {
 }
 
 static void
-init_local_ip(char *local_ip) {
-    if (get_local_ip(local_ip, sizeof(local_ip)) == 0) {
+init_local_ip(char *local_ip, size_t ip_len) {
+    if (get_local_ip(local_ip, ip_len) == 0) {
         strncpy(g_stats.local_ip, local_ip, sizeof(g_stats.local_ip));
         g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\0';
     } else {
@@ -289,7 +293,7 @@ receive_packet(char *const buf, const int buflen, Recv *recv, const int count, s
 
 static int
 ping(const Args *const args, struct sockaddr_in *const send_addr) {
-    
+
     char buf[1024];
     struct sockaddr_in recv_addr = {0};
     socklen_t addr_len = sizeof(recv_addr);
@@ -360,7 +364,7 @@ main(int ac, char **av) {
     }
 
     char local_ip[INET_ADDRSTRLEN];
-    init_local_ip(local_ip);
+    init_local_ip(local_ip, sizeof(local_ip));
 
     if (args.v) {
         printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
