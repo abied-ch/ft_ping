@@ -215,8 +215,13 @@ init_local_ip(char *local_ip) {
     }
 }
 
-int receive() {
-    
+static bool
+is_unexpected_packet(struct icmp *icmp, struct icmp *icmp_header, const int count) {
+    const bool is_echo_reply = icmp->icmp_type == ICMP_ECHOREPLY;
+    const bool id_matches = icmp->icmp_id == icmp_header->icmp_id;
+    const bool seq_matches = icmp->icmp_seq == count;
+
+    return !is_echo_reply || !id_matches || !seq_matches;
 }
 
 int
@@ -293,13 +298,8 @@ main(int ac, char **av) {
                 recv_error(icmp, count, recv_len);
                 break;
             }
-            if (icmp->icmp_type != ICMP_ECHOREPLY) {
-                continue;
-            }
-            if (icmp->icmp_id != icmp_header->icmp_id) {
-                continue;
-            }
-            if (icmp->icmp_seq != count) {
+
+            if (is_unexpected_packet(icmp, icmp_header, count)) {
                 continue;
             }
 
