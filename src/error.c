@@ -33,7 +33,7 @@ recv_error(const struct icmp *const icmp, const int seq, const int recv_len) {
         }
     } else if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return err_fmt(7, "From ", g_stats.local_ip, " icmp_seq=", seq_str, " ", gai_strerror(errno), "\n");
+            return err(NULL);
         }
     }
     return err_fmt(2, "recvfrom: ", strerror(errno));
