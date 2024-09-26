@@ -41,9 +41,6 @@ init(const int ac, char **av) {
 
     args->recv_addr_len = sizeof(args->recv_addr);
 
-    if (gettimeofday(&g_stats.start_time, NULL) == -1) {
-        return err(strerror(errno));
-    }
     res = init_socket(&g_stats.sockfd);
     if (res.type == ERR) {
         return res;
@@ -76,6 +73,9 @@ static Result
 loop(const Args *const args) {
     Result res;
 
+    if (gettimeofday(&g_stats.start_time, NULL) == -1) {
+        return err(strerror(errno));
+    }
     for (int seq = 1; seq; ++seq) {
         init_icmp_header((Args *)args, seq);
 
@@ -157,6 +157,8 @@ main(int ac, char **av) {
 
     strncpy(g_stats.dest, args->cli.dest, sizeof(g_stats.dest));
     g_stats.dest[sizeof(g_stats.dest) - 1] = '\0';
+
+    g_stats.args = args;
 
     res = ping(args);
     if (res.type == ERR) {

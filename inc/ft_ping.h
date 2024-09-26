@@ -16,21 +16,6 @@
 #define MAX_PINGS 1024
 
 typedef struct {
-    int errs;
-    int sockfd;
-    char dest[256];
-    double rtt_min;
-    double rtt_avg;
-    double rtt_max;
-    double rtt_mdev;
-    unsigned int sent;
-    unsigned int rcvd;
-    struct timeval start_time;
-    double rtts[MAX_PINGS];
-    char local_ip[INET6_ADDRSTRLEN];
-} Stats;
-
-typedef struct {
 
     struct {
         bool v;
@@ -49,15 +34,20 @@ typedef struct {
 } Args;
 
 typedef struct {
-
-    struct {
-        char *content;
-        size_t len;
-    } buf;
-
-    struct sockaddr_in addr;
-    socklen_t len;
-} Recv;
+    int errs;
+    int sockfd;
+    char dest[256];
+    double rtt_min;
+    double rtt_avg;
+    double rtt_max;
+    double rtt_mdev;
+    unsigned int sent;
+    unsigned int rcvd;
+    struct timeval start_time;
+    double rtts[MAX_PINGS];
+    char local_ip[INET6_ADDRSTRLEN];
+    Args *args;
+} Stats;
 
 typedef enum {
     OK = 0,

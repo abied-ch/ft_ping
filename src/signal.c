@@ -27,5 +27,6 @@ sigint(const int sig) {
     printf(", %d%% packet loss time %dms\n", loss, (int)tot_ms);
     printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
     close(g_stats.sockfd);
+    free(g_stats.args);
     exit(EXIT_SUCCESS);
 }
