@@ -90,6 +90,10 @@ loop(const Args *const args) {
         }
 
         res = receive_packet((Args *)args, seq, &trip_begin);
+        if (res.type == ERR) {
+            fprintf(stderr, "%s", res.val.err);
+            free(res.val.err);
+        }
 
         usleep(PING_INTERVAL);
     }

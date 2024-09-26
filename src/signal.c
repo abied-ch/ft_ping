@@ -17,7 +17,7 @@ sigint(const int sig) {
     int loss = 100 - (g_stats.rcvd * 100) / g_stats.sent;
     struct timeval end;
     gettimeofday(&end, NULL);
-    double tot_ms = (end.tv_sec - g_stats.start_time->tv_sec) * 1000.0 + (end.tv_usec - g_stats.start_time->tv_usec) / 1000.0;
+    double tot_ms = (end.tv_sec - g_stats.start_time.tv_sec) * 1000.0 + (end.tv_usec - g_stats.start_time.tv_usec) / 1000.0;
 
     printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.dest, g_stats.sent, g_stats.rcvd);
     if (g_stats.errs != 0) {
