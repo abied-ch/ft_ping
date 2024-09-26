@@ -41,7 +41,7 @@ init(const int ac, char **av) {
 
     args->recv_addr_len = sizeof(args->recv_addr);
 
-    if (gettimeofday(g_stats.start_time, NULL) == -1) {
+    if (gettimeofday(&g_stats.start_time, NULL) == -1) {
         return err(strerror(errno));
     }
     res = init_socket(&g_stats.sockfd);
@@ -50,7 +50,6 @@ init(const int ac, char **av) {
     }
 
     g_stats.rtt_min = __builtin_inff64();
-    gettimeofday(g_stats.start_time, NULL);
 
     if (signal(SIGINT, sigint) == SIG_ERR) {
         free(args);
@@ -78,7 +77,7 @@ loop(const Args *const args) {
     Result res;
 
     for (int seq = 1; seq; ++seq) {
-        init_icmp_header(args, seq);
+        init_icmp_header((Args *)args, seq);
 
         res = send_packet(args, (struct sockaddr_in *)&args->send_addr);
         if (res.type == ERR) {
@@ -89,7 +88,8 @@ loop(const Args *const args) {
         if (gettimeofday(&trip_begin, NULL) == 1) {
             return err_fmt(2, "gettimeofday: ", strerror(errno));
         }
-        
+
+        res = receive_packet((Args *)args, seq, &trip_begin);
     }
 
     return ok(NULL);
@@ -106,7 +106,7 @@ ping(const Args *const args) {
     printf("PING %s (%s) %d(%zu) data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
 
     memset((void *)args->packet + (sizeof(struct icmp)), 0x42, PAYLOAD_SIZE);
-    init_icmp_header(args, 0);
+    init_icmp_header((Args *)args, 0);
 
     res = set_socket_options(args);
     if (res.type == ERR) {
@@ -152,6 +152,12 @@ main(int ac, char **av) {
 
     strncpy(g_stats.dest, args->cli.dest, sizeof(g_stats.dest));
     g_stats.dest[sizeof(g_stats.dest) - 1] = '\0';
+
+    res = ping(args);
+    if (res.type == ERR) {
+        err_unwrap(res);
+        return cleanup(EXIT_FAILURE, args);
+    }
 
     return cleanup(EXIT_SUCCESS, args);
 }

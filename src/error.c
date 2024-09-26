@@ -3,36 +3,38 @@
 #include <netdb.h>
 #include <netinet/ip_icmp.h>
 #include <stdio.h>
+#include <string.h>
 
-void
+Result
 recv_error(const struct icmp *const icmp, const int seq, const int recv_len) {
+    char seq_str[10];
+    char icmp_code_str[10];
+
+    sprintf(seq_str, "%d", seq);
+    sprintf(icmp_code_str, "%d", icmp->icmp_code);
+
     g_stats.errs++;
     if (icmp->icmp_type == ICMP_DEST_UNREACH) {
         switch (icmp->icmp_code) {
         case ICMP_NET_UNREACH:
-            fprintf(stderr, "From %s icmp_seq=%d Destination Network Unreachable\n", g_stats.local_ip, seq);
-            break;
+            return err_fmt(5, "From ", g_stats.local_ip, " icmp_seq=", seq_str, " Destination Host Unreachable\n");
         case ICMP_HOST_UNREACH:
-            fprintf(stderr, "From %s icmp_seq=%d Destination Host Unreachable\n", g_stats.local_ip, seq);
-            break;
+            return err_fmt(5, "From ", g_stats.local_ip, " icmp_seq=", seq_str, " Destination Host Unreachable\n");
         case ICMP_FRAG_NEEDED:
-            fprintf(stderr, "From %s icmp_seq=%d Fragmentation needed\n", g_stats.local_ip, seq);
-            break;
+            return err_fmt(5, "From ", g_stats.local_ip, " icmp_seq=", seq_str, " Fragmentation Needed\n");
         default:
-            fprintf(stderr, "From %s icmp_seq=%d Destination unreachable, code: %d\n", g_stats.local_ip, seq, icmp->icmp_code);
-            break;
+            return err_fmt(7, "From ", g_stats.local_ip, " icmp_seq=", seq_str, " Destination unreachable, code: ", icmp_code_str, "\n");
         }
     } else if (icmp->icmp_type == ICMP_TIME_EXCEEDED) {
         if (icmp->icmp_code == ICMP_EXC_TTL) {
-            fprintf(stderr, "From %s icmp_seq=%d Time to live exceeded\n", g_stats.local_ip, seq);
+            return err_fmt(5, "From ", g_stats.local_ip, " icmp_seq=", seq, " Time to live exceeded\n");
         } else {
-            fprintf(stderr, "From %s icmp_seq=%d Time exceeded\n", g_stats.local_ip, seq);
+            return err_fmt(5, "From ", g_stats.local_ip, " icmp_seq=", seq, " Time to exceeded\n");
         }
     } else if (recv_len <= 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            fprintf(stderr, "From %s icmp_seq=%d %s\n", g_stats.local_ip, seq, gai_strerror(errno));
-        } else {
-            perror("recvfrom");
+            return err_fmt(7, "From ", g_stats.local_ip, " icmp_seq=", seq_str, " ", gai_strerror(errno), "\n");
         }
     }
+    return err_fmt(2, "recvfrom: ", strerror(errno));
 }

@@ -25,7 +25,7 @@ typedef struct {
     double rtt_mdev;
     unsigned int sent;
     unsigned int rcvd;
-    struct timeval *start_time;
+    struct timeval start_time;
     double rtts[MAX_PINGS];
     char local_ip[INET6_ADDRSTRLEN];
 } Stats;
@@ -80,7 +80,7 @@ Result parse_cli_args(const int ac, char **av, Args *const args);
 int help();
 
 // error.c
-void recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
+Result recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
 
 // socket.c
 Result init_socket(int *const sockfd);
@@ -97,11 +97,16 @@ Result get_send_addr(const Args *const args, struct sockaddr_in *const send_addr
 void init_local_ip();
 
 // icmp.c
-void init_icmp_header(const Args *const args, int seq);
+void init_icmp_header(Args *const args, int seq);
 Result send_packet(const Args *const args, struct sockaddr_in *send_addr);
+Result receive_packet(Args *const args, const int seq, const struct timeval *const trip_begin);
 
-    // signal.c
-    void sigint(const int sig);
+// signal.c
+void sigint(const int sig);
+
+// stats.c
+double update_stats(const struct timeval *const trip_begin);
+void display_rt_stats(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms);
 
 extern Stats g_stats;
 

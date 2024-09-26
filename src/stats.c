@@ -1,5 +1,6 @@
 #include "ft_ping.h"
 #include "math.h"
+#include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -27,4 +28,13 @@ update_stats(const struct timeval *const trip_begin) {
         g_stats.rtts[g_stats.rcvd] = rt_ms;
     }
     return rt_ms;
+}
+
+void
+display_rt_stats(const Args* const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
+    printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);
+    if (args->cli.v) {
+        printf("ident=%d ", icmp->icmp_id);
+    }
+    printf("ttl=%u time=%.3f ms\n", ip->ttl, ms);
 }

@@ -1,6 +1,5 @@
 #include "ft_ping.h"
 #include <bits/types/struct_iovec.h>
-#include <errno.h>
 #include <netdb.h>
 #include <stdbool.h>
 #include <stdio.h>
