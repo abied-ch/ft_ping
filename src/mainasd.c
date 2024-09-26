@@ -63,29 +63,7 @@ init_icmp_header(struct icmp *const icmp_header, const int seq, const char *cons
     icmp_header->icmp_cksum = checksum(packet, packet_len);
 }
 
-static void
-sigint(const int sig) {
-    if (sig != SIGINT) {
-        return;
-    }
-    if (g_stats.sent < 1) {
-        g_stats.sent = 1;
-    }
-    int loss = 100 - (g_stats.rcvd * 100) / g_stats.sent;
-    struct timeval end;
-    gettimeofday(&end, NULL);
-    double tot_ms = (end.tv_sec - g_stats.start_time->tv_sec) * 1000.0 + (end.tv_usec - g_stats.start_time->tv_usec) / 1000.0;
 
-    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.host, g_stats.sent, g_stats.rcvd);
-    if (g_stats.errs != 0) {
-        printf(", +%d errors", g_stats.errs);
-    }
-
-    printf(", %d%% packet loss time %dms\n", loss, (int)tot_ms);
-    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
-    close(g_stats.sockfd);
-    exit(EXIT_SUCCESS);
-}
 
 static int
 get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
@@ -135,12 +113,6 @@ update_stats(const struct timeval *const trip_begin) {
     return rt_ms;
 }
 
-static void
-init_stats() {
-    g_stats.rtt_min = __builtin_inff64();
-    gettimeofday(g_stats.start_time, NULL);
-}
-
 static int
 send_packet(const char *const packet, const size_t packet_size, const struct sockaddr_in *const send_addr) {
     if (sendto(g_stats.sockfd, packet, packet_size, 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
@@ -160,30 +132,7 @@ display_rt_stats(const bool v, const char *const ip_str, const struct icmp *cons
     printf("ttl=%u time=%.3f ms\n", ip->ttl, ms);
 }
 
-static int
-set_socket_options(const Args *const args) {
-    struct timeval timeout;
 
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 500000;
-    if (setsockopt(g_stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-        perror("setsockopt (SO_RCVTIMEO)");
-        return -1;
-    }
-
-    if (setsockopt(g_stats.sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
-        perror("setsockopt (SO_SNDTIMEO)");
-        return -1;
-    }
-
-    if (args->ttl != -1) {
-        if (setsockopt(g_stats.sockfd, IPPROTO_IP, IP_TTL, &args->ttl, sizeof(args->ttl)) == -1) {
-            perror("setsockopt (IP_TTL)");
-            return -1;
-        }
-    }
-    return 0;
-}
 
 static int
 get_local_ip(char *ip, size_t ip_size) {
@@ -283,7 +232,6 @@ ping(const Args *const args, struct sockaddr_in *const send_addr) {
     memset(packet + sizeof(struct icmp), 0x42, PAYLOAD_SIZE);
     init_icmp_header(icmp_header, 0, packet, sizeof(packet));
 
-    init_stats();
     if (set_socket_options(args) == -1) {
         close(g_stats.sockfd);
         return EXIT_FAILURE;

@@ -10,24 +10,20 @@
 #include <sys/socket.h>
 
 Result
-get_send_addr(const Args *const args) {
+get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     struct addrinfo hints, *res;
-    struct sockaddr_in *send_addr = calloc(sizeof(struct sockaddr_in), 1);
-    if (!send_addr) {
-        return err(strerror(errno));
-    }
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_RAW;
 
-    int e = getaddrinfo(args->dest, NULL, &hints, &res);
+    int e = getaddrinfo(args->cli.dest, NULL, &hints, &res);
     if (e != 0) {
-        if (args->v) {
+        if (args->cli.v) {
             printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
         }
         free(send_addr);
-        return err_fmt(5, "ft_ping: ", args->dest, ": ", gai_strerror(e), "\n");
+        return err_fmt(5, "ft_ping: ", args->cli.dest, ": ", gai_strerror(e), "\n");
     }
 
     struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
@@ -35,7 +31,7 @@ get_send_addr(const Args *const args) {
     send_addr->sin_addr = addr->sin_addr;
 
     freeaddrinfo(res);
-    return ok(send_addr);
+    return ok(NULL);
 }
 
 // Gets the IP address used to send the ICMP packets.
@@ -45,7 +41,7 @@ get_send_addr(const Args *const args) {
 // - `Result.type == ERR` on failure, this can mean either:
 // .
 // 1. The `getifaddrs` function failed
-// 2. No address was found 
+// 2. No address was found
 static Result
 get_local_ip(char *ip, size_t ip_len) {
     struct ifaddrs *ifaddr;
@@ -83,12 +79,12 @@ get_local_ip(char *ip, size_t ip_len) {
 }
 
 // Stores the IP used for sending ICMP packets into `g_stats.local_ip`. On failure to do so,
-// sets it by default to `0.0.0.0`. 
-void 
+// sets it by default to `0.0.0.0`.
+void
 init_local_ip() {
     Result res;
     char local_ip[INET_ADDRSTRLEN];
-    
+
     res = get_local_ip(local_ip, sizeof(local_ip));
     if (res.type == OK) {
         strncpy(g_stats.local_ip, local_ip, sizeof(g_stats.local_ip));
@@ -96,5 +92,4 @@ init_local_ip() {
         strncpy(g_stats.local_ip, "0.0.0.0", sizeof(g_stats.local_ip));
     }
     g_stats.local_ip[sizeof(g_stats.local_ip) - 1] = '\n';
-
 }

@@ -18,7 +18,7 @@
 typedef struct {
     int errs;
     int sockfd;
-    char host[256];
+    char dest[256];
     double rtt_min;
     double rtt_avg;
     double rtt_max;
@@ -31,10 +31,21 @@ typedef struct {
 } Stats;
 
 typedef struct {
-    bool v;
-    bool h;
-    int ttl;
-    const char *dest;
+
+    struct {
+        bool v;
+        bool h;
+        int ttl;
+        const char *dest;
+    } cli;
+
+    struct sockaddr_in send_addr;
+    struct sockaddr_in recv_addr;
+    socklen_t recv_addr_len;
+    char buf[1024];
+    char packet[PAYLOAD_SIZE + sizeof(struct icmp)];
+    struct icmp *icmp_h;
+    char ip_str[INET_ADDRSTRLEN];
 } Args;
 
 typedef struct {
@@ -65,7 +76,7 @@ typedef struct {
 } Result;
 
 // args.c
-Result parse_args(const int ac, char **av);
+Result parse_cli_args(const int ac, char **av, Args *const args);
 int help();
 
 // error.c
@@ -73,6 +84,7 @@ void recv_error(const struct icmp *const icmp, const int seq, const int recv_len
 
 // socket.c
 Result init_socket(int *const sockfd);
+Result set_socket_options(const Args *const args);
 
 // result.c
 Result ok(void *val);
@@ -81,8 +93,14 @@ Result err_fmt(const int n_strs, ...);
 void err_unwrap(Result err);
 
 // address.c
-Result get_send_addr(const Args *const args);
+Result get_send_addr(const Args *const args, struct sockaddr_in *const send_addr);
 void init_local_ip();
+
+// icmp.c
+void init_icmp_header(const Args *const args, int seq);
+
+// signal.c
+void sigint(const int sig);
 
 extern Stats g_stats;
 
