@@ -90,6 +90,8 @@ loop(const Args *const args) {
         }
 
         res = receive_packet((Args *)args, seq, &trip_begin);
+
+        usleep(PING_INTERVAL);
     }
 
     return ok(NULL);
