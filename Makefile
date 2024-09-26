@@ -10,6 +10,9 @@ SRCS = 	${SRC_DIR}ping.c \
 		${SRC_DIR}socket.c \
 		${SRC_DIR}result.c \
 		${SRC_DIR}address.c \
+		${SRC_DIR}icmp.c \
+		${SRC_DIR}signal.c \
+		${SRC_DIR}stats.c \
 
 OBJS = $(patsubst $(SRC_DIR)%.c, $(OBJ_DIR)/%.o, $(SRCS))
 

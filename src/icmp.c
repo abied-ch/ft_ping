@@ -1,5 +1,8 @@
 #include "ft_ping.h"
+#include <errno.h>
+#include <netinet/in.h>
 #include <netinet/ip_icmp.h>
+#include <string.h>
 #include <unistd.h>
 
 // Computes IP checksum (16 bit one's complement sum), ensuring packet integrity before accepting.
@@ -41,4 +44,13 @@ init_icmp_header(const Args *const args, const int seq) {
     // one) being lost!
     args->icmp_h->icmp_cksum = 0;
     args->icmp_h->icmp_cksum = checksum(args->packet, sizeof(args->packet));
+}
+
+Result
+send_packet(const Args* const args, struct sockaddr_in* send_addr) {
+    if (sendto(g_stats.sockfd, args->packet, sizeof(args->packet), 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
+        return err_fmt(2, "sendto: ", strerror(errno));
+    }
+    g_stats.sent++;
+    return ok(NULL);
 }

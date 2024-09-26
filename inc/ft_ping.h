@@ -98,9 +98,10 @@ void init_local_ip();
 
 // icmp.c
 void init_icmp_header(const Args *const args, int seq);
+Result send_packet(const Args *const args, struct sockaddr_in *send_addr);
 
-// signal.c
-void sigint(const int sig);
+    // signal.c
+    void sigint(const int sig);
 
 extern Stats g_stats;
 

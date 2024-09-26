@@ -5,7 +5,6 @@
 #include <bits/floatn-common.h>
 #include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
-#include <csignal>
 #include <ifaddrs.h>
 #include <limits.h>
 #include <linux/stddef.h>
@@ -75,6 +74,28 @@ cleanup(const int exit_code, Args *const args) {
 }
 
 static Result
+loop(const Args *const args) {
+    Result res;
+
+    for (int seq = 1; seq; ++seq) {
+        init_icmp_header(args, seq);
+
+        res = send_packet(args, (struct sockaddr_in *)&args->send_addr);
+        if (res.type == ERR) {
+            continue;
+        }
+
+        struct timeval trip_begin;
+        if (gettimeofday(&trip_begin, NULL) == 1) {
+            return err_fmt(2, "gettimeofday: ", strerror(errno));
+        }
+        
+    }
+
+    return ok(NULL);
+}
+
+static Result
 ping(const Args *const args) {
     Result res;
 
@@ -88,6 +109,11 @@ ping(const Args *const args) {
     init_icmp_header(args, 0);
 
     res = set_socket_options(args);
+    if (res.type == ERR) {
+        return res;
+    }
+
+    res = loop(args);
     if (res.type == ERR) {
         return res;
     }
