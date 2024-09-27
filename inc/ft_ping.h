@@ -18,9 +18,10 @@
 typedef struct {
 
     struct {
+        int t;
+        int c;
         bool v;
         bool h;
-        int t;
         const char *dest;
     } cli;
 

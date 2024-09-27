@@ -1,7 +1,9 @@
 #include "ft_ping.h"
 #include <bits/types/struct_iovec.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,27 +31,46 @@ handle_h(Args *const args, const char *const arg) {
 }
 
 static Result
-handle_ttl(Args *const args, const char *const arg) {
+handle_t(Args *const args, const char *const arg) {
     char *endptr;
     long val = strtol(arg, &endptr, 10);
 
-    if (*endptr != '\0' || val <= 0 || val > 255) {
+    if (*endptr != '\0') {
         return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
+    } else if (val <= 0 || val > 255) {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "': out of range: 0 <= value <= 255");
     }
 
     args->cli.t = (int)val;
     return ok(NULL);
 }
 
+static Result
+handle_c(Args *const args, const char *const arg) {
+    char *endptr;
+    int64_t val = strtol(arg, &endptr, 10);
+
+    if (*endptr != '\0') {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
+    } else if (val < 1 || errno == ERANGE) {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "' out of range: : 1 <= value <= 9223372036854775807\n");
+    }
+
+    args->cli.c = (int)val;
+    return ok(NULL);
+}
+
 static const OptionEntry option_map[] = {
-    {"-v",        handle_v,   false},
-    {"--verbose", handle_v,   false},
-    {"-h",        handle_h,   false},
-    {"--help",    handle_h,   false},
-    {"-?",        handle_h,   false},
-    {"--ttl",     handle_ttl, true },
-    {"-t",        handle_ttl, true },
-    {NULL,        NULL,       false},
+    {"-v",        handle_v, false},
+    {"--verbose", handle_v, false},
+    {"-h",        handle_h, false},
+    {"--help",    handle_h, false},
+    {"-?",        handle_h, false},
+    {"--ttl",     handle_t, true },
+    {"-t",        handle_t, true },
+    {"-c",        handle_c, true },
+    {"--count",   handle_c, true },
+    {NULL,        NULL,     false},
 };
 
 // Prints help message and returns `2`.
@@ -100,6 +121,7 @@ Result
 parse_cli_args(const int ac, char **av, Args *const args) {
     bool extra_arg = false;
     args->cli.t = -1;
+    args->cli.c = -1;
 
     for (int idx = 1; idx < ac; ++idx) {
         if (av[idx][0] == '-') {
