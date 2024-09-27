@@ -6,18 +6,31 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Returns a `Result` struct with `.type` set to `OK` and `.val.val` set to `val`.
+// Safety:
+// - `val` is a void pointer to make the `Result` struct portable. It is therefore the caller's responsibility
+// to make the expected type of `val` clear in the code.
 Result
 ok(void *val) {
     Result res = {.type = OK, .val = {.val = val}, .on_heap = false};
     return res;
 }
 
+// Returns a `Result` struct with `.type` set to `ERR` and `.val.err` set to `err`.
+// Safety:
+// - The `err` string will not be freed!
+// - The `err` string is assumed to be a valid, null-terminated string.
 Result
 err(char *err) {
     Result res = {.type = ERR, .val = {.err = err}, .on_heap = false};
     return res;
 }
 
+// Returns a `Result` struct with `.type` set to `ERR` and `.val.err` set to all strings passed to this function
+// joined together (without any separator).
+// Safety:
+// - The `n_strs` argument is expected to reflect the actual amount of strings passed to the variadic argument!
+// - `.val.err` will be heap-allocated. Always call `err_unwrap` to free the memory!
 Result
 err_fmt(const int n_strs, ...) {
     va_list args;
@@ -53,9 +66,13 @@ err_fmt(const int n_strs, ...) {
     return res;
 }
 
+// "Unwraps" the `Result` struct value, printing `.val.err` value to `stderr` if `quiet` is set
+// to `false` and freeing it if necessary.
+// .
+// Does nothing if `.type != ERR` or `.val.err == NULL`.
 void
 err_unwrap(Result err, const bool quiet) {
-    if (!err.val.err) {
+    if (err.type != ERR || !err.val.err) {
         return;
     }
     if (!quiet) {

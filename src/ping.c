@@ -107,7 +107,9 @@ loop(const Args *const args) {
     if (clock_gettime(CLOCK_MONOTONIC, &g_stats.start_time)) {
         return err(strerror(errno));
     }
-    for (int seq = 1; loop_condition(args, seq); ++seq) {
+
+    for (int seq = 1; seq; ++seq) {
+
         struct timespec trip_begin;
         if (clock_gettime(CLOCK_MONOTONIC, &trip_begin) == 1) {
             return err_fmt(2, "clock_gettime: ", strerror(errno));

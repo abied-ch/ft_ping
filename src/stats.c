@@ -5,6 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 
+// Updates the stats with the data of the current round trip.
 double
 stats_update(const struct timespec *const trip_begin) {
     struct timespec trip_end;
@@ -34,6 +35,7 @@ stats_update(const struct timespec *const trip_begin) {
     return rt_ms;
 }
 
+// Displays the stats for the full ping lifetime.
 void
 stats_display_final() {
     if (g_stats.sent < 1) {
@@ -63,6 +65,8 @@ stats_display_final() {
     }
 }
 
+// Displays the stats for the current roundtrip. May add a unix timestamp or `ident` field of the IP header depending on
+// which CLI options are set.
 void
 stats_display_rt(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
     if (args->cli.q) {
