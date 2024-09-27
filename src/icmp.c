@@ -88,7 +88,7 @@ packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq)
 // - `Result.type == ERR` on error. Errors include: recv errors (see `recv_error` in `src/error.c`),
 // internal failures (`gettimeofday` in `stats_update`)
 Result
-icmp_recv_packet(Args *const args, const int seq, const struct timeval *const trip_begin) {
+icmp_recv_packet(Args *const args, const int seq, const struct timespec *const trip_begin) {
     while (true) {
         ssize_t recv_len = recvfrom(g_stats.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->recv_addr, &args->recv_addr_len);
 

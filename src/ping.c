@@ -31,7 +31,7 @@ Stats g_stats = {0};
 // access in signal handlers) and parses command line arguments.
 // .
 // Returns:
-// - `.type == OK`, `.val.val` type: `Args *` on success
+// - `.type == OK`, `.val.val == Args *` on success
 // - `.type == ERR`, on failure
 static Result
 init(const int ac, char **av) {
@@ -60,6 +60,10 @@ init(const int ac, char **av) {
     return parse_cli_args(ac, av, args);
 }
 
+// (probably overengineered)
+// Checks whether the loop conditions are met. Can be called in the main loop's control structure.
+// I originally thought there would be more to check than the `-c` argument, hence why I made an
+// extra function for it.
 static bool
 loop_condition(const Args *const args, const int seq) {
     if (args->cli.c != -1) {
@@ -71,26 +75,27 @@ loop_condition(const Args *const args, const int seq) {
 
 // Calculates the time to sleep in order to maintain the same interval between each ping.
 // .
-// WHY `clock_nanosleep` IS NOT PROTECTED:
-// Opening `man clock_nanosleep` shows that every possible error would be due to invalid input
-// (except for `EINTR`, which would be handled by the signal handler). All input is sanitized
-// at some point before being passed to `clock_nanosleep`, therefore no protection is needed.
+// Returns:
+// `.type == OK` on success
+// `.type == ERR` on error (`clock_gettime` & `clock_nanosleep` are both subject to failure)
 static Result
-adjust_sleep(struct timeval start_time, const double interval) {
+adjust_sleep(struct timespec start_time, const double interval) {
     struct timespec end_time = {0};
     if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
         return err_fmt(2, "clock_gettime: ", strerror(errno));
     }
 
-    double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_usec) / 1000000000.0;
+    double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
     double remaining = (interval - elapsed);
 
     if (remaining > 0) {
         struct timespec ts;
-        ts.tv_sec = (time_t)floor(interval);
-        ts.tv_nsec = (__syscall_slong_t)((interval - floor(interval)) * 1000000000);
+        ts.tv_sec = (time_t)floor(remaining);
+        ts.tv_nsec = (__syscall_slong_t)((remaining - floor(remaining)) * 1e9);
 
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
+        if (clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL) == -1) {
+            return err_fmt(2, "clock_nanosleep: ", strerror(errno));
+        }
     }
     return ok(NULL);
 }
@@ -99,13 +104,13 @@ static Result
 loop(const Args *const args) {
     Result res;
 
-    if (gettimeofday(&g_stats.start_time, NULL) == -1) {
+    if (clock_gettime(CLOCK_MONOTONIC, &g_stats.start_time)) {
         return err(strerror(errno));
     }
     for (int seq = 1; loop_condition(args, seq); ++seq) {
-        struct timeval trip_begin;
-        if (gettimeofday(&trip_begin, NULL) == 1) {
-            return err_fmt(2, "gettimeofday: ", strerror(errno));
+        struct timespec trip_begin;
+        if (clock_gettime(CLOCK_MONOTONIC, &trip_begin) == 1) {
+            return err_fmt(2, "clock_gettime: ", strerror(errno));
         }
 
         icmp_init_header((Args *)args, seq);

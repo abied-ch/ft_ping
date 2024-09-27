@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <time.h>
 
 #define DEFAULT_INTERVAL 1.0
 #define PACKET_SIZE 64
@@ -48,7 +49,7 @@ typedef struct {
     double rtt_mdev;
     unsigned int sent;
     unsigned int rcvd;
-    struct timeval start_time;
+    struct timespec start_time;
     double rtts[MAX_PINGS];
     char local_ip[INET6_ADDRSTRLEN];
     // Pointer to the args struct needed to free it in the signal handler
@@ -97,13 +98,13 @@ void init_local_ip();
 // icmp.c
 void icmp_init_header(Args *const args, int seq);
 Result icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr);
-Result icmp_recv_packet(Args *const args, const int seq, const struct timeval *const trip_begin);
+Result icmp_recv_packet(Args *const args, const int seq, const struct timespec *const trip_begin);
 
 // signal.c
 void sigint(const int sig);
 
 // stats.c
-double stats_update(const struct timeval *const trip_begin);
+double stats_update(const struct timespec *const trip_begin);
 void stats_display_rt(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms);
 void stats_display_final();
 
