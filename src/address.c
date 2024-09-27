@@ -9,6 +9,11 @@
 #include <string.h>
 #include <sys/socket.h>
 
+// Stores the destination address into `send_addr`.
+// .
+// Returns:
+// `.type == OK` on success
+// `.type == ERR` on failure (most likely name specified in CLI arguments not resolvable)
 Result
 get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     struct addrinfo hints, *res;
@@ -33,14 +38,12 @@ get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
     return ok(NULL);
 }
 
-// Gets the IP address used to send the ICMP packets.
+// Gets the local IP address the ICMP packets are sent from.
 // .
 // Returns:
-// - `Result.type == OK` if an address was found
-// - `Result.type == ERR` on failure, this can mean either:
-// .
-// 1. The `getifaddrs` function failed
-// 2. No address was found
+// - `.type == OK` if an address was found
+// - `.type == ERR` on failure, this means that either the `getifaddrs` function failed
+// (which would be specified in `.val.err`), or that no address was found.
 static Result
 get_local_ip(char *ip, size_t ip_len) {
     struct ifaddrs *ifaddr;
