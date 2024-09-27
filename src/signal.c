@@ -4,6 +4,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+// Handles `SIGINT`.
+// Displays the final stats (errors, rtt_(min, max, avg, mdev)) and frees up
+// resources allocated during the ping process.
 void
 sigint(const int sig) {
     if (sig != SIGINT) {
