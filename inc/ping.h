@@ -108,6 +108,10 @@ double stats_update(const struct timespec *const trip_begin);
 void stats_display_rt(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms);
 void stats_display_final();
 
+// ping.c
+Result ping_init(const int ac, char **av);
+Result ping(const Args *const args);
+
 extern Stats g_stats;
 
 #endif

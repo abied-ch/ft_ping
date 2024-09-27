@@ -27,39 +27,6 @@
 
 Stats g_stats = {0};
 
-// Sets start time, initializes socket file descriptor (into `g_stats.sockfd` to allow
-// access in signal handlers) and parses command line arguments.
-// .
-// Returns:
-// - `.type == OK`, `.val.val == Args *` on success
-// - `.type == ERR`, on failure
-static Result
-init(const int ac, char **av) {
-    Result res;
-
-    Args *args = calloc(sizeof(Args), 1);
-    if (!args) {
-        return err(strerror(errno));
-    }
-
-    args->recv_addr_len = sizeof(args->recv_addr);
-
-    res = socket_init(&g_stats.sockfd);
-    if (res.type == ERR) {
-        return res;
-    }
-
-    g_stats.rtt_min = __builtin_inff64();
-
-    if (signal(SIGINT, sigint) == SIG_ERR) {
-        free(args);
-        close(g_stats.sockfd);
-        return err_fmt(2, "signal: ", strerror(errno));
-    }
-
-    return parse_cli_args(ac, av, args);
-}
-
 // (probably overengineered)
 // Checks whether the loop conditions are met. Can be called in the main loop's control structure.
 // I originally thought there would be more to check than the `-c` argument, hence why I made an
@@ -141,7 +108,7 @@ loop(const Args *const args) {
     return ok(NULL);
 }
 
-static Result
+Result
 ping(const Args *const args) {
     Result res;
 
@@ -172,45 +139,35 @@ ping(const Args *const args) {
     return ok(NULL);
 }
 
-int
-main(int ac, char **av) {
+// Sets start time, initializes socket file descriptor (into `g_stats.sockfd` to allow
+// access in signal handlers) and parses command line arguments.
+// .
+// Returns:
+// - `.type == OK`, `.val.val == Args *` on success
+// - `.type == ERR`, on failure
+Result
+ping_init(const int ac, char **av) {
     Result res;
 
-    res = init(ac, av);
+    Args *args = calloc(sizeof(Args), 1);
+    if (!args) {
+        return err(strerror(errno));
+    }
+
+    args->recv_addr_len = sizeof(args->recv_addr);
+
+    res = socket_init(&g_stats.sockfd);
     if (res.type == ERR) {
-        err_unwrap(res, false);
-        return cleanup(EXIT_FAILURE, NULL);
+        return res;
     }
 
-    Args *args = (Args *)res.val.val;
+    g_stats.rtt_min = __builtin_inff64();
 
-    if (args->cli.h) {
-        return cleanup(help(), args);
+    if (signal(SIGINT, sigint) == SIG_ERR) {
+        free(args);
+        close(g_stats.sockfd);
+        return err_fmt(2, "signal: ", strerror(errno));
     }
 
-    res = get_send_addr(args, &args->send_addr);
-    if (res.type == ERR) {
-        err_unwrap(res, false);
-        return cleanup(EXIT_FAILURE, args);
-    }
-
-    init_local_ip();
-
-    if (args->cli.v) {
-        printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
-        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args->cli.dest);
-    }
-
-    strncpy(g_stats.dest, args->cli.dest, sizeof(g_stats.dest));
-    g_stats.dest[sizeof(g_stats.dest) - 1] = '\0';
-
-    g_stats.args = args;
-
-    res = ping(args);
-    if (res.type == ERR) {
-        err_unwrap(res, false);
-        return cleanup(EXIT_FAILURE, args);
-    }
-
-    return cleanup(EXIT_SUCCESS, args);
+    return parse_cli_args(ac, av, args);
 }

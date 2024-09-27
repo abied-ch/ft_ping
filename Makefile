@@ -4,7 +4,7 @@ OBJ_DIR = obj
 SRC_DIR = src
 INC_DIR = inc
 
-SRCS = ping.c args.c error.c socket.c result.c address.c icmp.c signal.c stats.c
+SRCS = main.c ping.c args.c error.c socket.c result.c address.c icmp.c signal.c stats.c
 OBJS = $(addprefix $(OBJ_DIR)/, $(SRCS:.c=.o))
 
 CC = cc
