@@ -51,17 +51,17 @@ stats_display_final() {
 
     double tot_ms = (end.tv_sec - g_stats.start_time.tv_sec) * 1e3 + (end.tv_nsec - g_stats.start_time.tv_nsec) / 1e6;
 
-    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.dest, g_stats.sent, g_stats.rcvd);
+    fprintf(stdout, "\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.dest, g_stats.sent, g_stats.rcvd);
     if (g_stats.errs != 0) {
-        printf(", +%d errors", g_stats.errs);
+        fprintf(stdout, ", +%d errors", g_stats.errs);
     }
 
-    printf(", %d%% packet loss, time %.0fms\n", loss, tot_ms);
+    fprintf(stdout, ", %d%% packet loss, time %.0fms\n", loss, tot_ms);
 
     if (g_stats.rcvd > 0) {
-        printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt.min, g_stats.rtt.avg, g_stats.rtt.max, g_stats.rtt.mdev);
+        fprintf(stdout, "rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt.min, g_stats.rtt.avg, g_stats.rtt.max, g_stats.rtt.mdev);
     } else {
-        printf("\n");
+        fprintf(stdout, "\n");
     }
 }
 
@@ -80,18 +80,18 @@ stats_display_rt(const Args *const args, const struct icmp *const icmp, const st
             return;
         }
 
-        printf("[%ld.%06ld] ", timestamp.tv_sec, timestamp.tv_nsec / 1000);
+        fprintf(stdout, "[%ld.%06ld] ", timestamp.tv_sec, timestamp.tv_nsec / 1000);
     }
 
-    printf("%d bytes from %s: icmp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);
+    fprintf(stdout, "%d bytes from %s: icmp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);
     if (args->cli.v) {
-        printf("ident=%d ", icmp->icmp_id);
+        fprintf(stdout, "ident=%d ", icmp->icmp_id);
     }
     if (ms < 1.0) {
-        printf("ttl=%u time=%.3f ms\n", ip->ttl, ms);
+        fprintf(stdout, "ttl=%u time=%.3f ms\n", ip->ttl, ms);
     } else if (ms < 10.0) {
-        printf("ttl=%u time=%.2f ms\n", ip->ttl, ms);
+        fprintf(stdout, "ttl=%u time=%.2f ms\n", ip->ttl, ms);
     } else {
-        printf("ttl=%u time=%.1f ms\n", ip->ttl, ms);
+        fprintf(stdout, "ttl=%u time=%.1f ms\n", ip->ttl, ms);
     }
 }

@@ -28,8 +28,8 @@ main(int ac, char **av) {
     init_local_ip();
 
     if (args->cli.v) {
-        printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.alloc.sockfd);
-        printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args->cli.dest);
+        fprintf(stdout, "ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.alloc.sockfd);
+        fprintf(stdout, "ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args->cli.dest);
     }
 
     strncpy(g_stats.dest, args->cli.dest, sizeof(g_stats.dest));

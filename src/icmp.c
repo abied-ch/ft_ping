@@ -89,28 +89,25 @@ packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq)
 // internal failures (`gettimeofday` in `stats_update`)
 Result
 icmp_recv_packet(Args *const args, const int seq, const struct timespec *const trip_begin) {
-    while (true) {
-        socklen_t recv_addr_len = sizeof(args->addr.recv);
-        ssize_t recv_len = recvfrom(g_stats.alloc.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->addr.recv, &recv_addr_len);
+    socklen_t recv_addr_len = sizeof(args->addr.recv);
+    ssize_t recv_len = recvfrom(g_stats.alloc.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->addr.recv, &recv_addr_len);
 
-        struct iphdr *ip = (struct iphdr *)args->buf;
-        size_t iphdr_len = ip->ihl << 2;
-        struct icmp *icmp = (struct icmp *)(args->buf + iphdr_len);
-        if (recv_len <= 0) {
-            return recv_error(icmp, seq, recv_len);
-        }
-
-        if (packet_is_unexpected(icmp, args->icmp_h, seq)) {
-            continue;
-        }
-
-        double rt_ms = stats_update(trip_begin);
-        if ((int)rt_ms == -1) {
-            return err(NULL);
-        }
-
-        stats_display_rt(args, icmp, ip, rt_ms);
-        break;
+    struct iphdr *ip = (struct iphdr *)args->buf;
+    size_t iphdr_len = ip->ihl << 2;
+    struct icmp *icmp = (struct icmp *)(args->buf + iphdr_len);
+    if (recv_len <= 0) {
+        return recv_error(icmp, seq, recv_len);
     }
+
+    if (packet_is_unexpected(icmp, args->icmp_h, seq)) {
+        return ok(NULL);
+    }
+
+    double rt_ms = stats_update(trip_begin);
+    if ((int)rt_ms == -1) {
+        return err(NULL);
+    }
+
+    stats_display_rt(args, icmp, ip, rt_ms);
     return ok(NULL);
 }

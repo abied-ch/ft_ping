@@ -59,7 +59,7 @@ adjust_sleep(struct timespec start_time, const double interval) {
     if (remaining > 0) {
         struct timespec ts;
         ts.tv_sec = (time_t)floor(remaining);
-        ts.tv_nsec = (__syscall_slong_t)((remaining - floor(remaining)) * 1e9);
+        ts.tv_nsec = ((remaining - floor(remaining)) * 1e9);
 
         if (clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL) == -1) {
             return err_fmt(2, "clock_nanosleep: ", strerror(errno));
@@ -71,15 +71,19 @@ adjust_sleep(struct timespec start_time, const double interval) {
 static Result
 fd_wait(const Args *const args, struct timespec trip_begin, const int seq) {
     fd_set readfds;
+    struct timeval timeout;
+
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
 
     FD_ZERO(&readfds);
     FD_SET(g_stats.alloc.sockfd, &readfds);
 
-    int ready = select(g_stats.alloc.sockfd + 1, &readfds, NULL, NULL, NULL);
+    int ready = select(g_stats.alloc.sockfd + 1, &readfds, NULL, NULL, &timeout);
     if (ready < 0) {
         return err_fmt(2, "select: ", strerror(errno));
     } else if (ready == 0) {
-        return err("Request timeout\n");
+        return ok(NULL);
     }
     return icmp_recv_packet((Args *)args, seq, &trip_begin);
 }
@@ -112,13 +116,13 @@ loop(const Args *const args) {
             err_unwrap(res, args->cli.q);
         }
 
-        if (!loop_condition(args, seq + 1)) {
-            break;
-        }
-
         res = adjust_sleep(trip_begin, args->cli.i);
         if (res.type == ERR) {
             return res;
+        }
+
+        if (!loop_condition(args, seq + 1)) {
+            break;
         }
     }
 
@@ -135,7 +139,7 @@ ping(const Args *const args) {
         return err(strerror(errno));
     }
 
-    printf("PING %s (%s) %d data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE);
+    fprintf(stdout, "PING %s (%s) %d data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE);
 
     res = flood_check(args);
     if (res.type == ERR) {
