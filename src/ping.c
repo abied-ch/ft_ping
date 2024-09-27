@@ -188,5 +188,12 @@ ping_init(const int ac, char **av) {
         return err_fmt(2, "signal: ", strerror(errno));
     }
 
-    return parse_cli_args(ac, av, args);
+    res = parse_cli_args(ac, av, args);
+    if (res.type == ERR) {
+        free(args);
+        close(g_stats.alloc.sockfd);
+        return res;
+    }
+
+    return ok(args);
 }

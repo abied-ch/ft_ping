@@ -81,7 +81,7 @@ handle_i(Args *const args, const char *const arg) {
     double val = strtod(arg, &endptr);
 
     if (*endptr != '\0') {
-        return err_fmt(3, "ft_ping: invalid argument: '", args, "'\n");
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
     }
 
     args->cli.i = DEFAULT_INTERVAL * val;
