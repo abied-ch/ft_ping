@@ -1,15 +1,21 @@
 #include "ping.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
+#include <sys/socket.h>
 
 // Initializes a raw `ICMP` (`IPv4`) socket and stores its fd into `*sockfd`.
 Result
 socket_init(int *const sockfd) {
-    *sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    *sockfd = socket(AF_INET, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_ICMP);
     if (*sockfd == -1) {
-        return err(strerror(errno));
+        if (errno == EPERM) {
+            return err("ft_ping: socket: Permission Denied: root privileges required for raw socket creation\n");
+        }
+        return err_fmt(2, "socket: ", strerror(errno));
     }
+
     return ok(NULL);
 }
 

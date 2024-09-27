@@ -69,6 +69,22 @@ adjust_sleep(struct timespec start_time, const double interval) {
 }
 
 static Result
+fd_wait(const Args *const args, struct timespec trip_begin, const int seq) {
+    fd_set readfds;
+
+    FD_ZERO(&readfds);
+    FD_SET(g_stats.alloc.sockfd, &readfds);
+
+    int ready = select(g_stats.alloc.sockfd + 1, &readfds, NULL, NULL, NULL);
+    if (ready < 0) {
+        return err_fmt(2, "select: ", strerror(errno));
+    } else if (ready == 0) {
+        return err("Request timeout\n");
+    }
+    return icmp_recv_packet((Args *)args, seq, &trip_begin);
+}
+
+static Result
 loop(const Args *const args) {
     Result res;
 
@@ -87,24 +103,15 @@ loop(const Args *const args) {
 
         res = icmp_send_packet(args, (struct sockaddr_in *)&args->addr.send);
         if (res.type == ERR) {
+            err_unwrap(res, args->cli.q);
             continue;
         }
-        fd_set readfds;
-        struct timeval tv;
 
-        FD_ZERO(&readfds);
-        FD_SET(g_stats.alloc.sockfd, &readfds);
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-        int ready = select(g_stats.alloc.sockfd + 1, &readfds, NULL, NULL, &tv);
-        if (ready > 0) {
-            res = icmp_recv_packet((Args *)args, seq, &trip_begin);
-        } else {
-            perror("select");
-        }
+        res = fd_wait(args, trip_begin, seq);
         if (res.type == ERR) {
             err_unwrap(res, args->cli.q);
         }
+
         if (!loop_condition(args, seq + 1)) {
             break;
         }
