@@ -62,7 +62,7 @@ icmp_init_header(Args *const args, const int seq) {
 Result
 icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr) {
     if (sendto(g_stats.alloc.sockfd, args->packet, sizeof(args->packet), 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
-        return err_fmt(2, "sendto: ", strerror(errno));
+        return err_fmt(3, "sendto: ", strerror(errno), "\n");
     }
     g_stats.sent++;
     return ok(NULL);

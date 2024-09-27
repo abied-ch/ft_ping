@@ -13,7 +13,7 @@ socket_init(int *const sockfd) {
         if (errno == EPERM) {
             return err("ft_ping: socket: Permission Denied: root privileges required for raw socket creation\n");
         }
-        return err_fmt(2, "socket: ", strerror(errno));
+        return err_fmt(3, "socket: ", strerror(errno), "\n");
     }
 
     return ok(NULL);
@@ -28,16 +28,16 @@ socket_set_options(const Args *const args) {
     timeout.tv_sec = 0;
     timeout.tv_usec = 100000;
     if (setsockopt(g_stats.alloc.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-        return err_fmt(2, "setsockopt (SO_RCVTIMEO): ", strerror(errno));
+        return err_fmt(3, "setsockopt (SO_RCVTIMEO): ", strerror(errno), "\n");
     }
 
     if (setsockopt(g_stats.alloc.sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
-        return err_fmt(2, "setsockopt (SO_SNDTIMEO): ", strerror(errno));
+        return err_fmt(3, "setsockopt (SO_SNDTIMEO): ", strerror(errno), "\n");
     }
 
     if (args->cli.t != -1) {
         if (setsockopt(g_stats.alloc.sockfd, IPPROTO_IP, IP_TTL, &args->cli.t, sizeof(args->cli.t)) == -1) {
-            return err_fmt(2, "setsockopt (IP_TTL): ", strerror(errno));
+            return err_fmt(3, "setsockopt (IP_TTL): ", strerror(errno), "\n");
         }
     }
     return ok(NULL);

@@ -51,7 +51,7 @@ get_local_ip(char *ip, size_t ip_len) {
     char host[NI_MAXHOST];
 
     if (getifaddrs(&ifaddr) == -1) {
-        return err_fmt(2, "getifaddrs: ", strerror(errno));
+        return err_fmt(3, "getifaddrs: ", strerror(errno), "\n");
     }
 
     for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {

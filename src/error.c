@@ -57,7 +57,7 @@ recv_error(const struct icmp *const icmp, const int seq, const int recv_len) {
             return err(NULL);
         }
     }
-    return err_fmt(2, "recvfrom: ", strerror(errno));
+    return err_fmt(3, "recvfrom: ", strerror(errno), "\n");
 }
 
 // Performs full cleanup and returns `exit_code`.

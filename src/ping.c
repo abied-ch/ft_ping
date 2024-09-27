@@ -50,7 +50,7 @@ static Result
 adjust_sleep(struct timespec start_time, const double interval) {
     struct timespec end_time = {0};
     if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
-        return err_fmt(2, "clock_gettime: ", strerror(errno));
+        return err_fmt(3, "clock_gettime: ", strerror(errno), "\n");
     }
 
     double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
@@ -62,7 +62,7 @@ adjust_sleep(struct timespec start_time, const double interval) {
         ts.tv_nsec = ((remaining - floor(remaining)) * 1e9);
 
         if (clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL) == -1) {
-            return err_fmt(2, "clock_nanosleep: ", strerror(errno));
+            return err_fmt(3, "clock_nanosleep: ", strerror(errno), "\n");
         }
     }
     return ok(NULL);
@@ -78,7 +78,7 @@ fd_wait(const Args *const args, struct timespec trip_begin, const int seq) {
 
     int ready = select(g_stats.alloc.sockfd + 1, &readfds, NULL, NULL, &timeout);
     if (ready < 0) {
-        return err_fmt(2, "select: ", strerror(errno));
+        return err_fmt(3, "select: ", strerror(errno), "\n");
     } else if (ready == 0) {
         return ok(NULL);
     }
@@ -91,13 +91,13 @@ loop(const Args *const args) {
     Result res;
 
     if (clock_gettime(CLOCK_MONOTONIC, &g_stats.start_time)) {
-        return err(strerror(errno));
+        return err_fmt(2, strerror(errno), "\n");
     }
 
     for (int seq = 1; seq; ++seq) {
         struct timespec trip_begin;
         if (clock_gettime(CLOCK_MONOTONIC, &trip_begin) == 1) {
-            return err_fmt(2, "clock_gettime: ", strerror(errno));
+            return err_fmt(3, "clock_gettime: ", strerror(errno), "\n");
         }
 
         icmp_init_header((Args *)args, seq);
@@ -134,7 +134,7 @@ ping(const Args *const args) {
     Result res;
 
     if (!inet_ntop(AF_INET, &(args->addr.send.sin_addr), (char *)args->ip_str, INET_ADDRSTRLEN)) {
-        return err(strerror(errno));
+        return err_fmt(3, strerror(errno), "\n");
     }
 
     fprintf(stdout, "PING %s (%s) %d data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE);
@@ -172,7 +172,7 @@ ping_init(const int ac, char **av) {
 
     Args *args = calloc(sizeof(Args), 1);
     if (!args) {
-        return err(strerror(errno));
+        return err_fmt(3, "calloc: ", strerror(errno), "\n");
     }
 
     res = socket_init(&g_stats.alloc.sockfd);
@@ -185,7 +185,7 @@ ping_init(const int ac, char **av) {
     if (signal(SIGINT, sigint) == SIG_ERR) {
         free(args);
         close(g_stats.alloc.sockfd);
-        return err_fmt(2, "signal: ", strerror(errno));
+        return err_fmt(3, "signal: ", strerror(errno), "\n");
     }
 
     res = parse_cli_args(ac, av, args);
