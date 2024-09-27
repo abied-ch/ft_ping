@@ -48,11 +48,20 @@ stats_display_final() {
     }
 
     printf(", %d%% packet loss time %dms\n", loss, (int)tot_ms);
-    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
+
+    if (g_stats.rcvd > 0) {
+        printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
+    } else {
+        printf("\n");
+    }
 }
 
 void
 stats_display_rt(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
+    if (args->cli.q) {
+        return;
+    }
+
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);
     if (args->cli.v) {
         printf("ident=%d ", icmp->icmp_id);

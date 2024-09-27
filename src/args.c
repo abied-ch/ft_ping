@@ -31,6 +31,13 @@ handle_h(Args *const args, const char *const arg) {
 }
 
 static Result
+handle_q(Args *const args, const char *const arg) {
+    (void)arg;
+    args->cli.q = true;
+    return ok(NULL);
+}
+
+static Result
 handle_t(Args *const args, const char *const arg) {
     char *endptr;
     long val = strtol(arg, &endptr, 10);
@@ -79,6 +86,8 @@ static const OptionEntry option_map[] = {
     {"-h",         handle_h, false},
     {"--help",     handle_h, false},
     {"-?",         handle_h, false},
+    {"-q",         handle_q, false},
+    {"--quiet",    handle_q, false},
     {"--ttl",      handle_t, true },
     {"-t",         handle_t, true },
     {"-c",         handle_c, true },

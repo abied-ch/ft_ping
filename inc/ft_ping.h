@@ -22,6 +22,7 @@ typedef struct {
         int c;
         bool v;
         bool h;
+        bool q;
         double i;
         const char *dest;
     } cli;
