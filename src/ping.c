@@ -116,7 +116,7 @@ ping(const Args *const args) {
         return err(strerror(errno));
     }
 
-    printf("PING %s (%s) %d(%zu) data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
+    printf("PING %s (%s) %d data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE);
 
     res = flood_check(args);
     if (res.type == ERR) {
