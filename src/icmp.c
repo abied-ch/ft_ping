@@ -78,9 +78,8 @@ receive_packet(Args *const args, const int seq, const struct timeval *const trip
         struct iphdr *ip = (struct iphdr *)args->buf;
         size_t iphdr_len = ip->ihl << 2;
         struct icmp *icmp = (struct icmp *)(args->buf + iphdr_len);
-
         if (recv_len <= 0) {
-            return recv_error(args->icmp_h, seq, recv_len);
+            return recv_error(icmp, seq, recv_len);
         }
 
         if (packet_is_unexpected(icmp, args->icmp_h, seq)) {
