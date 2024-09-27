@@ -66,7 +66,7 @@ stats_display_rt(const Args *const args, const struct icmp *const icmp, const st
         struct timeval timestamp = {0};
 
         gettimeofday(&timestamp, NULL);
-        printf("[%u.%u] ", (unsigned int)time(NULL), (unsigned int)timestamp.tv_usec);
+        printf("[%u.%06u] ", (unsigned int)time(NULL), (unsigned int)timestamp.tv_usec);
     }
 
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);

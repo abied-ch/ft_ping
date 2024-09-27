@@ -74,10 +74,11 @@ typedef struct {
 // args.c
 Result parse_cli_args(const int ac, char **av, Args *const args);
 Result flood_check(const Args *const args);
-int help();
 
 // error.c
 Result recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
+int cleanup(const int exit_code, Args *const args);
+int help();
 
 // socket.c
 Result socket_init(int *const sockfd);

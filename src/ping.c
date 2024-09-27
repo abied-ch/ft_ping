@@ -31,8 +31,8 @@ Stats g_stats = {0};
 // access in signal handlers) and parses command line arguments.
 // .
 // Returns:
-// - `Result.type == OK`, `Result.val.val` type: `Args *` on success
-// - `Result.type == ERR`, error message stored in `Result.err.err` on failure
+// - `.type == OK`, `.val.val` type: `Args *` on success
+// - `.type == ERR`, on failure
 static Result
 init(const int ac, char **av) {
     Result res;
@@ -60,18 +60,6 @@ init(const int ac, char **av) {
     return parse_cli_args(ac, av, args);
 }
 
-// Performs full cleanup and returns `exit_code`.
-static int
-cleanup(const int exit_code, Args *const args) {
-    if (g_stats.sockfd != -1) {
-        close(g_stats.sockfd);
-    }
-    if (args) {
-        free(args);
-    }
-    return exit_code;
-}
-
 static bool
 loop_condition(const Args *const args, const int seq) {
     if (args->cli.c != -1) {
@@ -89,12 +77,12 @@ loop_condition(const Args *const args, const int seq) {
 // at some point before being passed to `clock_nanosleep`, therefore no protection is needed.
 static Result
 adjust_sleep(struct timeval start_time, const double interval) {
-    struct timeval end_time = {0};
-    if (gettimeofday(&end_time, NULL) == -1) {
-        return err_fmt(2, "gettimeofday: ", strerror(errno));
+    struct timespec end_time = {0};
+    if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
+        return err_fmt(2, "clock_gettime: ", strerror(errno));
     }
 
-    double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+    double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_usec) / 1000000000.0;
     double remaining = (interval - elapsed);
 
     if (remaining > 0) {
