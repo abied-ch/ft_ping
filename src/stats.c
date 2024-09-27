@@ -17,9 +17,9 @@ stats_update(const struct timespec *const trip_begin) {
     double rt_ms = (trip_end.tv_sec - trip_begin->tv_sec) * 1e3 + (trip_end.tv_nsec - trip_begin->tv_nsec) / 1e6;
 
     g_stats.rcvd++;
-    g_stats.rtt_min = fmin(g_stats.rtt_min, rt_ms);
-    g_stats.rtt_max = fmax(g_stats.rtt_max, rt_ms);
-    g_stats.rtt_avg = ((g_stats.rtt_avg * (g_stats.rcvd - 1)) + rt_ms) / g_stats.rcvd;
+    g_stats.rtt.min = fmin(g_stats.rtt.min, rt_ms);
+    g_stats.rtt.max = fmax(g_stats.rtt.max, rt_ms);
+    g_stats.rtt.avg = ((g_stats.rtt.avg * (g_stats.rcvd - 1)) + rt_ms) / g_stats.rcvd;
 
     double sum_deviation = 0.0;
 
@@ -28,9 +28,9 @@ stats_update(const struct timespec *const trip_begin) {
     }
 
     for (size_t i = 0; i < g_stats.rcvd; ++i) {
-        sum_deviation += fabs(g_stats.rtts[i] - g_stats.rtt_avg);
+        sum_deviation += fabs(g_stats.rtts[i] - g_stats.rtt.avg);
     }
-    g_stats.rtt_mdev = sum_deviation / g_stats.rcvd;
+    g_stats.rtt.mdev = sum_deviation / g_stats.rcvd;
 
     return rt_ms;
 }
@@ -59,7 +59,7 @@ stats_display_final() {
     printf(", %d%% packet loss, time %.0fms\n", loss, tot_ms);
 
     if (g_stats.rcvd > 0) {
-        printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
+        printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt.min, g_stats.rtt.avg, g_stats.rtt.max, g_stats.rtt.mdev);
     } else {
         printf("\n");
     }

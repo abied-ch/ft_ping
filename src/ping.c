@@ -161,7 +161,7 @@ ping_init(const int ac, char **av) {
         return res;
     }
 
-    g_stats.rtt_min = __builtin_inff64();
+    g_stats.rtt.min = __builtin_inff64();
 
     if (signal(SIGINT, sigint) == SIG_ERR) {
         free(args);

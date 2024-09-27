@@ -43,10 +43,14 @@ typedef struct {
     // sockfd needed to close it in the signal handler
     int sockfd;
     char dest[256];
-    double rtt_min;
-    double rtt_avg;
-    double rtt_max;
-    double rtt_mdev;
+
+    struct {
+        double min;
+        double avg;
+        double max;
+        double mdev;
+
+    } rtt;
     unsigned int sent;
     unsigned int rcvd;
     struct timespec start_time;
