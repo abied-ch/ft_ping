@@ -79,6 +79,14 @@ loop_condition(const Args *const args, const int seq) {
 }
 
 static Result
+flood_check(const Args *const args) {
+    if (args->cli.i < 2000.0) {
+        return err("ft_ping: cannot flood, minimal interval for user must be >= 2ms, use -i 0.002 (or higher)\n");
+    }
+    return ok(NULL);
+}
+
+static Result
 loop(const Args *const args) {
     Result res;
 
@@ -103,12 +111,12 @@ loop(const Args *const args) {
             err_unwrap(res);
         }
         if (!loop_condition(args, seq + 1)) {
-            stats_display_final();
             break;
         }
-
         usleep(args->cli.i);
     }
+
+    stats_display_final();
 
     return ok(NULL);
 }
@@ -122,6 +130,11 @@ ping(const Args *const args) {
     }
 
     printf("PING %s (%s) %d(%zu) data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE, sizeof(struct icmp) + PAYLOAD_SIZE);
+
+    res = flood_check(args);
+    if (res.type == ERR) {
+        return res;
+    }
 
     memset((void *)args->packet + (sizeof(struct icmp)), 0x42, PAYLOAD_SIZE);
     init_icmp_header((Args *)args, 0);
