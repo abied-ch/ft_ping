@@ -3,8 +3,9 @@
 #include <errno.h>
 #include <string.h>
 
+// Initializes a raw `ICMP` (`IPv4`) socket and stores its fd into `*sockfd`.
 Result
-init_socket(int *const sockfd) {
+socket_init(int *const sockfd) {
     *sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (*sockfd == -1) {
         return err(strerror(errno));
@@ -12,8 +13,10 @@ init_socket(int *const sockfd) {
     return ok(NULL);
 }
 
+// Sets `SO_RCVTIMEO` & `SO_SNDTIMEO` (receive & send timeouts) on the socket.
+// Also adds `IP_TTL` (IP time to live) if specified in the command line arguments.
 Result
-set_socket_options(const Args *const args) {
+socket_set_options(const Args *const args) {
     struct timeval timeout;
 
     timeout.tv_sec = 0;

@@ -31,7 +31,7 @@ update_stats(const struct timeval *const trip_begin) {
 }
 
 void
-display_rt_stats(const Args* const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
+display_rt_stats(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);
     if (args->cli.v) {
         printf("ident=%d ", icmp->icmp_id);

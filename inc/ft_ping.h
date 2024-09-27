@@ -75,8 +75,8 @@ int help();
 Result recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
 
 // socket.c
-Result init_socket(int *const sockfd);
-Result set_socket_options(const Args *const args);
+Result socket_init(int *const sockfd);
+Result socket_set_options(const Args *const args);
 
 // result.c
 Result ok(void *val);

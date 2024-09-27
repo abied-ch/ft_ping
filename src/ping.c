@@ -41,7 +41,7 @@ init(const int ac, char **av) {
 
     args->recv_addr_len = sizeof(args->recv_addr);
 
-    res = init_socket(&g_stats.sockfd);
+    res = socket_init(&g_stats.sockfd);
     if (res.type == ERR) {
         return res;
     }
@@ -113,7 +113,7 @@ ping(const Args *const args) {
     memset((void *)args->packet + (sizeof(struct icmp)), 0x42, PAYLOAD_SIZE);
     init_icmp_header((Args *)args, 0);
 
-    res = set_socket_options(args);
+    res = socket_set_options(args);
     if (res.type == ERR) {
         return res;
     }
