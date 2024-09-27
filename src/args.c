@@ -39,6 +39,13 @@ handle_q(Args *const args, const char *const arg) {
 }
 
 static Result
+handle_D(Args *const args, const char *const arg) {
+    (void)arg;
+    args->cli.D = true;
+    return ok(NULL);
+}
+
+static Result
 handle_t(Args *const args, const char *const arg) {
     char *endptr;
     long val = strtol(arg, &endptr, 10);
@@ -82,33 +89,16 @@ handle_i(Args *const args, const char *const arg) {
 }
 
 static const OptionEntry option_map[] = {
-    {"-v", "--verbose",  handle_v, false},
-    {"-h", "--help",     handle_h, false},
-    {"-?", "--help",     handle_h, false},
-    {"-q", "--quiet",    handle_q, false},
-    {"-t", "--ttl",      handle_t, true },
-    {"-c", "--count",    handle_c, true },
-    {"-i", "--interval", handle_i, true },
-    {NULL, NULL,         NULL,     false},
+    {"-v", "--verbose",   handle_v, false},
+    {"-h", "--help",      handle_h, false},
+    {"-?", "--help",      handle_h, false},
+    {"-q", "--quiet",     handle_q, false},
+    {"-D", "--timestamp", handle_D, false},
+    {"-t", "--ttl",       handle_t, true },
+    {"-c", "--count",     handle_c, true },
+    {"-i", "--interval",  handle_i, true },
+    {NULL, NULL,          NULL,     false},
 };
-
-// Prints help message and returns `2`.
-int
-help() {
-    fprintf(stderr, "\n"
-                    "Usage:\n"
-                    "  ./ft_ping [options] <destination>\n"
-                    "\n"
-                    "Options:\n"
-                    "  <destination>      DNS name or IP address\n"
-                    "  -c <count>         stop after <count> replies\n"
-                    "  -h | -?            print help and exit\n"
-                    "  -i <interval>      seconds between sending each packet\n"
-                    "  -q                 quiet output\n"
-                    "  -t                 define time to live\n"
-                    "  -v                 verbose output\n");
-    return 2;
-}
 
 // ping handles extra arguments weirdly:
 // - If multiple destination hosts are provided, only the last one will be stored, then:
@@ -186,4 +176,13 @@ parse_cli_args(const int ac, char **av, Args *const args) {
     }
 
     return ok(args);
+}
+
+// Sanitizes the `-i` / `--interval` input, ensuring it does not go bvelow `0.002s`.
+Result
+flood_check(const Args *const args) {
+    if (args->cli.i < 0.002) {
+        return err("ft_ping: cannot flood, minimal interval for user must be >= 2ms, use -i 0.002 (or higher)\n");
+    }
+    return ok(NULL);
 }

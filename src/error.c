@@ -5,6 +5,24 @@
 #include <stdio.h>
 #include <string.h>
 
+// Prints help message and returns `2`.
+int
+help() {
+    fprintf(stderr, "\n"
+                    "Usage:\n"
+                    "  ./ft_ping [options] <destination>\n"
+                    "\n"
+                    "Options:\n"
+                    "  <destination>      DNS name or IP address\n"
+                    "  -c <count>         stop after <count> replies\n"
+                    "  -h | -?            print help and exit\n"
+                    "  -i <interval>      seconds between sending each packet\n"
+                    "  -q                 quiet output\n"
+                    "  -t                 define time to live\n"
+                    "  -v                 verbose output\n");
+    return 2;
+}
+
 Result
 recv_error(const struct icmp *const icmp, const int seq, const int recv_len) {
     char seq_str[10];

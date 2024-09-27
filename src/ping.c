@@ -1,13 +1,16 @@
-#include "errno.h"
 #include "ping.h"
+#include "errno.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <bits/floatn-common.h>
+#include <bits/time.h>
+#include <bits/types.h>
 #include <bits/types/struct_iovec.h>
 #include <bits/types/struct_timeval.h>
 #include <ifaddrs.h>
 #include <limits.h>
 #include <linux/stddef.h>
+#include <math.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -78,10 +81,28 @@ loop_condition(const Args *const args, const int seq) {
     return true;
 }
 
+// Calculates the time to sleep in order to maintain the same interval between each ping.
+// .
+// WHY `clock_nanosleep` IS NOT PROTECTED:
+// Opening `man clock_nanosleep` shows that every possible error would be due to invalid input
+// (except for `EINTR`, which would be handled by the signal handler). All input is sanitized
+// at some point before being passed to `clock_nanosleep`, therefore no protection is needed.
 static Result
-flood_check(const Args *const args) {
-    if (args->cli.i < 2000.0) {
-        return err("ft_ping: cannot flood, minimal interval for user must be >= 2ms, use -i 0.002 (or higher)\n");
+adjust_sleep(struct timeval start_time, const double interval) {
+    struct timeval end_time = {0};
+    if (gettimeofday(&end_time, NULL) == -1) {
+        return err_fmt(2, "gettimeofday: ", strerror(errno));
+    }
+
+    double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+    double remaining = (interval - elapsed);
+
+    if (remaining > 0) {
+        struct timespec ts;
+        ts.tv_sec = (time_t)floor(interval);
+        ts.tv_nsec = (__syscall_slong_t)((interval - floor(interval)) * 1000000000);
+
+        clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
     }
     return ok(NULL);
 }
@@ -94,26 +115,30 @@ loop(const Args *const args) {
         return err(strerror(errno));
     }
     for (int seq = 1; loop_condition(args, seq); ++seq) {
-        init_icmp_header((Args *)args, seq);
-
-        res = send_packet(args, (struct sockaddr_in *)&args->send_addr);
-        if (res.type == ERR) {
-            continue;
-        }
-
         struct timeval trip_begin;
         if (gettimeofday(&trip_begin, NULL) == 1) {
             return err_fmt(2, "gettimeofday: ", strerror(errno));
         }
 
-        res = receive_packet((Args *)args, seq, &trip_begin);
+        icmp_init_header((Args *)args, seq);
+
+        res = icmp_send_packet(args, (struct sockaddr_in *)&args->send_addr);
+        if (res.type == ERR) {
+            continue;
+        }
+
+        res = icmp_recv_packet((Args *)args, seq, &trip_begin);
         if (res.type == ERR) {
             err_unwrap(res, args->cli.q);
         }
         if (!loop_condition(args, seq + 1)) {
             break;
         }
-        usleep(args->cli.i);
+
+        res = adjust_sleep(trip_begin, args->cli.i);
+        if (res.type == ERR) {
+            return res;
+        }
     }
 
     stats_display_final();
@@ -137,7 +162,7 @@ ping(const Args *const args) {
     }
 
     memset((void *)args->packet + (sizeof(struct icmp)), 0x42, PAYLOAD_SIZE);
-    init_icmp_header((Args *)args, 0);
+    icmp_init_header((Args *)args, 0);
 
     res = socket_set_options(args);
     if (res.type == ERR) {

@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define DEFAULT_INTERVAL 1000000.0
+#define DEFAULT_INTERVAL 1.0
 #define PACKET_SIZE 64
 #define PAYLOAD_SIZE 64
 #define MAX_PINGS 1024
@@ -23,6 +23,7 @@ typedef struct {
         bool v;
         bool h;
         bool q;
+        bool D;
         double i;
         const char *dest;
     } cli;
@@ -72,6 +73,7 @@ typedef struct {
 
 // args.c
 Result parse_cli_args(const int ac, char **av, Args *const args);
+Result flood_check(const Args *const args);
 int help();
 
 // error.c
@@ -92,9 +94,9 @@ Result get_send_addr(const Args *const args, struct sockaddr_in *const send_addr
 void init_local_ip();
 
 // icmp.c
-void init_icmp_header(Args *const args, int seq);
-Result send_packet(const Args *const args, struct sockaddr_in *send_addr);
-Result receive_packet(Args *const args, const int seq, const struct timeval *const trip_begin);
+void icmp_init_header(Args *const args, int seq);
+Result icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr);
+Result icmp_recv_packet(Args *const args, const int seq, const struct timeval *const trip_begin);
 
 // signal.c
 void sigint(const int sig);

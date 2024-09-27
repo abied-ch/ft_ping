@@ -38,8 +38,9 @@ checksum(const void *const buffer, int len) {
     return ~sum;
 }
 
+// Initializes a ICMP header. Can be called on each iteration to refresh the `icmp` struct in `args`. 
 void
-init_icmp_header(Args *const args, const int seq) {
+icmp_init_header(Args *const args, const int seq) {
     args->icmp_h = (struct icmp *)args->packet;
     args->icmp_h->icmp_type = ICMP_ECHO;
     args->icmp_h->icmp_id = getpid();
@@ -52,8 +53,13 @@ init_icmp_header(Args *const args, const int seq) {
     args->icmp_h->icmp_cksum = checksum(args->packet, sizeof(args->packet));
 }
 
+// Sends the IMCP packet to the destination specified by `send_addr`.
+// .
+// Returns:
+// - `Result.type == OK` on success
+// - `Result.type == ERR` on failure to send the packet
 Result
-send_packet(const Args *const args, struct sockaddr_in *send_addr) {
+icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr) {
     if (sendto(g_stats.sockfd, args->packet, sizeof(args->packet), 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
         return err_fmt(2, "sendto: ", strerror(errno));
     }
@@ -61,6 +67,11 @@ send_packet(const Args *const args, struct sockaddr_in *send_addr) {
     return ok(NULL);
 }
 
+// Checks whether the packet matches with the one we are expecting.
+// .
+// Returns:
+// - `false` if the packet matches
+// - `true` if one of `is_echo_reply`, `id_matches` or `seq_matches` is false
 static bool
 packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq) {
     const bool is_echo_reply = icmp->icmp_type == ICMP_ECHOREPLY;
@@ -70,8 +81,14 @@ packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq)
     return !is_echo_reply || !id_matches || !seq_matches;
 }
 
+// Tries to receive packets on `g_stats.sockfd` until finding the one corresponding to the
+// sent echo request.
+// Returns:
+// - `Result.type == OK` on success
+// - `Result.type == ERR` on error. Errors include: recv errors (see `recv_error` in `src/error.c`),
+// internal failures (`gettimeofday` in `stats_update`)
 Result
-receive_packet(Args *const args, const int seq, const struct timeval *const trip_begin) {
+icmp_recv_packet(Args *const args, const int seq, const struct timeval *const trip_begin) {
     while (true) {
         ssize_t recv_len = recvfrom(g_stats.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->recv_addr, &args->recv_addr_len);
 
