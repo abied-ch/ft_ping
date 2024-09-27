@@ -94,9 +94,6 @@ loop(const Args *const args) {
         return err(strerror(errno));
     }
 
-    clock_t s, e;
-    double cpu_time;
-
     for (int seq = 1; seq; ++seq) {
         struct timespec trip_begin;
         if (clock_gettime(CLOCK_MONOTONIC, &trip_begin) == 1) {
@@ -111,14 +108,10 @@ loop(const Args *const args) {
             continue;
         }
 
-        s = clock();
         res = fd_wait(args, trip_begin, seq);
         if (res.type == ERR) {
             err_unwrap(res, args->cli.q);
         }
-        e = clock();
-        cpu_time = ((double)(e - s)) / CLOCKS_PER_SEC;
-        printf("time taken for fd_wait:          %f seconds\n", cpu_time);
 
         res = adjust_sleep(trip_begin, args->cli.i);
         if (res.type == ERR) {
@@ -135,6 +128,7 @@ loop(const Args *const args) {
     return ok(NULL);
 }
 
+// Starts the ping loop.
 Result
 ping(const Args *const args) {
     Result res;
