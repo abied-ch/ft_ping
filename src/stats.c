@@ -66,5 +66,11 @@ stats_display_rt(const Args *const args, const struct icmp *const icmp, const st
     if (args->cli.v) {
         printf("ident=%d ", icmp->icmp_id);
     }
-    printf("ttl=%u time=%.3f ms\n", ip->ttl, ms);
+    if (ms < 1.0) {
+        printf("ttl=%u time=%.3f ms\n", ip->ttl, ms);
+    } else if (ms < 10.0) {
+        printf("ttl=%u time=%.2f ms\n", ip->ttl, ms);
+    } else {
+        printf("ttl=%u time=%.1f ms\n", ip->ttl, ms);
+    }
 }

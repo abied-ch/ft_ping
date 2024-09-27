@@ -22,7 +22,6 @@ get_send_addr(const Args *const args, struct sockaddr_in *const send_addr) {
         if (args->cli.v) {
             printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
         }
-        free(send_addr);
         return err_fmt(5, "ft_ping: ", args->cli.dest, ": ", gai_strerror(e), "\n");
     }
 

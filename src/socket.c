@@ -20,7 +20,7 @@ socket_set_options(const Args *const args) {
     struct timeval timeout;
 
     timeout.tv_sec = 0;
-    timeout.tv_usec = 500000;
+    timeout.tv_usec = 100000;
     if (setsockopt(g_stats.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
         return err_fmt(2, "setsockopt (SO_RCVTIMEO): ", strerror(errno));
     }
