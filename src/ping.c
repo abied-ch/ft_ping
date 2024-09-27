@@ -71,10 +71,7 @@ adjust_sleep(struct timespec start_time, const double interval) {
 static Result
 fd_wait(const Args *const args, struct timespec trip_begin, const int seq) {
     fd_set readfds;
-    struct timeval timeout;
-
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
+    struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
 
     FD_ZERO(&readfds);
     FD_SET(g_stats.alloc.sockfd, &readfds);
@@ -85,6 +82,7 @@ fd_wait(const Args *const args, struct timespec trip_begin, const int seq) {
     } else if (ready == 0) {
         return ok(NULL);
     }
+
     return icmp_recv_packet((Args *)args, seq, &trip_begin);
 }
 
@@ -96,8 +94,10 @@ loop(const Args *const args) {
         return err(strerror(errno));
     }
 
-    for (int seq = 1; seq; ++seq) {
+    clock_t s, e;
+    double cpu_time;
 
+    for (int seq = 1; seq; ++seq) {
         struct timespec trip_begin;
         if (clock_gettime(CLOCK_MONOTONIC, &trip_begin) == 1) {
             return err_fmt(2, "clock_gettime: ", strerror(errno));
@@ -111,10 +111,14 @@ loop(const Args *const args) {
             continue;
         }
 
+        s = clock();
         res = fd_wait(args, trip_begin, seq);
         if (res.type == ERR) {
             err_unwrap(res, args->cli.q);
         }
+        e = clock();
+        cpu_time = ((double)(e - s)) / CLOCKS_PER_SEC;
+        printf("time taken for fd_wait:          %f seconds\n", cpu_time);
 
         res = adjust_sleep(trip_begin, args->cli.i);
         if (res.type == ERR) {

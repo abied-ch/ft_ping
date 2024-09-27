@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 // Computes IP checksum (16 bit one's complement sum), ensuring packet integrity before accepting.
@@ -90,6 +91,7 @@ packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq)
 Result
 icmp_recv_packet(Args *const args, const int seq, const struct timespec *const trip_begin) {
     socklen_t recv_addr_len = sizeof(args->addr.recv);
+
     ssize_t recv_len = recvfrom(g_stats.alloc.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->addr.recv, &recv_addr_len);
 
     struct iphdr *ip = (struct iphdr *)args->buf;
@@ -109,5 +111,6 @@ icmp_recv_packet(Args *const args, const int seq, const struct timespec *const t
     }
 
     stats_display_rt(args, icmp, ip, rt_ms);
+
     return ok(NULL);
 }
