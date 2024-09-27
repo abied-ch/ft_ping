@@ -1,4 +1,4 @@
-#include "ft_ping.h"
+#include "ping.h"
 #include <bits/types/struct_iovec.h>
 #include <errno.h>
 #include <ifaddrs.h>

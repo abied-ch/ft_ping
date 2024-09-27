@@ -85,7 +85,7 @@ Result socket_set_options(const Args *const args);
 Result ok(void *val);
 Result err(char *err);
 Result err_fmt(const int n_strs, ...);
-void err_unwrap(Result err);
+void err_unwrap(Result err, const bool quiet);
 
 // address.c
 Result get_send_addr(const Args *const args, struct sockaddr_in *const send_addr);

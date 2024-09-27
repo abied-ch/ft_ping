@@ -1,4 +1,4 @@
-#include "ft_ping.h"
+#include "ping.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/time.h>

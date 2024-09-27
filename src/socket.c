@@ -1,4 +1,4 @@
-#include "ft_ping.h"
+#include "ping.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>

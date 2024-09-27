@@ -1,5 +1,5 @@
 #include "errno.h"
-#include "ft_ping.h"
+#include "ping.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <bits/floatn-common.h>
@@ -108,7 +108,7 @@ loop(const Args *const args) {
 
         res = receive_packet((Args *)args, seq, &trip_begin);
         if (res.type == ERR) {
-            err_unwrap(res);
+            err_unwrap(res, args->cli.q);
         }
         if (!loop_condition(args, seq + 1)) {
             break;
@@ -158,7 +158,7 @@ main(int ac, char **av) {
 
     res = init(ac, av);
     if (res.type == ERR) {
-        err_unwrap(res);
+        err_unwrap(res, false);
         return cleanup(EXIT_FAILURE, NULL);
     }
 
@@ -170,7 +170,7 @@ main(int ac, char **av) {
 
     res = get_send_addr(args, &args->send_addr);
     if (res.type == ERR) {
-        err_unwrap(res);
+        err_unwrap(res, false);
         return cleanup(EXIT_FAILURE, args);
     }
 
@@ -188,7 +188,7 @@ main(int ac, char **av) {
 
     res = ping(args);
     if (res.type == ERR) {
-        err_unwrap(res);
+        err_unwrap(res, false);
         return cleanup(EXIT_FAILURE, args);
     }
 

@@ -1,4 +1,4 @@
-#include "ft_ping.h"
+#include "ping.h"
 #include <bits/types/struct_iovec.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -54,11 +54,13 @@ err_fmt(const int n_strs, ...) {
 }
 
 void
-err_unwrap(Result err) {
+err_unwrap(Result err, const bool quiet) {
     if (!err.val.err) {
         return;
     }
-    fprintf(stderr, "%s", err.val.err);
+    if (!quiet) {
+        fprintf(stderr, "%s", err.val.err);
+    }
     if (err.on_heap) {
         free(err.val.err);
     }

@@ -1,5 +1,5 @@
 #include "errno.h"
-#include "ft_ping.h"
+#include "ping.h"
 #include <netdb.h>
 #include <netinet/ip_icmp.h>
 #include <stdio.h>

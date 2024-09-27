@@ -1,4 +1,4 @@
-#include "ft_ping.h"
+#include "ping.h"
 #include <bits/types/struct_iovec.h>
 #include <errno.h>
 #include <netdb.h>
@@ -11,7 +11,8 @@
 typedef Result (*option_handler)(Args *const, const char *);
 
 typedef struct {
-    const char *option;
+    const char *option_s;
+    const char *option_l;
     option_handler handler;
     bool requires_arg;
 } OptionEntry;
@@ -81,20 +82,14 @@ handle_i(Args *const args, const char *const arg) {
 }
 
 static const OptionEntry option_map[] = {
-    {"-v",         handle_v, false},
-    {"--verbose",  handle_v, false},
-    {"-h",         handle_h, false},
-    {"--help",     handle_h, false},
-    {"-?",         handle_h, false},
-    {"-q",         handle_q, false},
-    {"--quiet",    handle_q, false},
-    {"--ttl",      handle_t, true },
-    {"-t",         handle_t, true },
-    {"-c",         handle_c, true },
-    {"--count",    handle_c, true },
-    {"-i",         handle_i, true },
-    {"--interval", handle_i, true },
-    {NULL,         NULL,     false},
+    {"-v", "--verbose",  handle_v, false},
+    {"-h", "--help",     handle_h, false},
+    {"-?", "--help",     handle_h, false},
+    {"-q", "--quiet",    handle_q, false},
+    {"-t", "--ttl",      handle_t, true },
+    {"-c", "--count",    handle_c, true },
+    {"-i", "--interval", handle_i, true },
+    {NULL, NULL,         NULL,     false},
 };
 
 // Prints help message and returns `2`.
@@ -105,12 +100,13 @@ help() {
                     "  ./ft_ping [options] <destination>\n"
                     "\n"
                     "Options:\n"
-                    "  <destination>               DNS name or IP address\n"
-                    "  -c <count>                  stop after <count> replies\n"
-                    "  -h | -?                     print help and exit\n"
-                    "  -i <interval>               seconds between sending each packet\n"
-                    "  -t                          define time to live\n"
-                    "  -v                          verbose output\n");
+                    "  <destination>      DNS name or IP address\n"
+                    "  -c <count>         stop after <count> replies\n"
+                    "  -h | -?            print help and exit\n"
+                    "  -i <interval>      seconds between sending each packet\n"
+                    "  -q                 quiet output\n"
+                    "  -t                 define time to live\n"
+                    "  -v                 verbose output\n");
     return 2;
 }
 
@@ -157,10 +153,10 @@ parse_cli_args(const int ac, char **av, Args *const args) {
     for (int idx = 1; idx < ac; ++idx) {
         if (av[idx][0] == '-') {
             const OptionEntry *entry = option_map;
-            while (entry->option != NULL && strcmp(entry->option, av[idx]) != 0) {
+            while (entry->option_s != NULL && strcmp(entry->option_s, av[idx]) != 0 && strcmp(entry->option_l, av[idx]) != 0) {
                 entry++;
             }
-            if (entry->option == NULL) {
+            if (entry->option_s == NULL) {
                 free(args);
                 return err_fmt(3, "ft_ping: invalid option -- '", av[idx], "'\n");
             }
