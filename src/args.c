@@ -60,17 +60,32 @@ handle_c(Args *const args, const char *const arg) {
     return ok(NULL);
 }
 
+static Result
+handle_i(Args *const args, const char *const arg) {
+    char *endptr;
+    double val = strtod(arg, &endptr);
+
+    if (*endptr != '\0') {
+        return err_fmt(3, "ft_ping: invalid argument: '", args, "'\n");
+    }
+
+    args->cli.i = DEFAULT_INTERVAL * val;
+    return ok(NULL);
+}
+
 static const OptionEntry option_map[] = {
-    {"-v",        handle_v, false},
-    {"--verbose", handle_v, false},
-    {"-h",        handle_h, false},
-    {"--help",    handle_h, false},
-    {"-?",        handle_h, false},
-    {"--ttl",     handle_t, true },
-    {"-t",        handle_t, true },
-    {"-c",        handle_c, true },
-    {"--count",   handle_c, true },
-    {NULL,        NULL,     false},
+    {"-v",         handle_v, false},
+    {"--verbose",  handle_v, false},
+    {"-h",         handle_h, false},
+    {"--help",     handle_h, false},
+    {"-?",         handle_h, false},
+    {"--ttl",      handle_t, true },
+    {"-t",         handle_t, true },
+    {"-c",         handle_c, true },
+    {"--count",    handle_c, true },
+    {"-i",         handle_i, true },
+    {"--interval", handle_i, true },
+    {NULL,         NULL,     false},
 };
 
 // Prints help message and returns `2`.
@@ -124,6 +139,7 @@ parse_cli_args(const int ac, char **av, Args *const args) {
     bool extra_arg = false;
     args->cli.t = -1;
     args->cli.c = -1;
+    args->cli.i = DEFAULT_INTERVAL;
 
     for (int idx = 1; idx < ac; ++idx) {
         if (av[idx][0] == '-') {

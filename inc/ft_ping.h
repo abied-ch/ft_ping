@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define PING_INTERVAL 1000000
+#define DEFAULT_INTERVAL 1000000.0
 #define PACKET_SIZE 64
 #define PAYLOAD_SIZE 64
 #define MAX_PINGS 1024
@@ -22,6 +22,7 @@ typedef struct {
         int c;
         bool v;
         bool h;
+        double i;
         const char *dest;
     } cli;
 

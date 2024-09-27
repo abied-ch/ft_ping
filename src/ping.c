@@ -107,7 +107,7 @@ loop(const Args *const args) {
             break;
         }
 
-        usleep(PING_INTERVAL);
+        usleep(args->cli.i);
     }
 
     return ok(NULL);
