@@ -29,7 +29,7 @@ handle_h(Args *const args, const char *const arg) {
 }
 
 static Result
-handle_ttl(Args *args, const char *arg) {
+handle_ttl(Args *const args, const char *const arg) {
     char *endptr;
     long val = strtol(arg, &endptr, 10);
 
@@ -37,16 +37,19 @@ handle_ttl(Args *args, const char *arg) {
         return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
     }
 
-    args->cli.ttl = (int)val;
+    args->cli.t = (int)val;
     return ok(NULL);
 }
 
 static const OptionEntry option_map[] = {
-    {"-v",    handle_v,   false},
-    {"-h",    handle_h,   false},
-    {"-?",    handle_h,   false},
-    {"--ttl", handle_ttl, true },
-    {NULL,    NULL,       false},
+    {"-v",        handle_v,   false},
+    {"--verbose", handle_v,   false},
+    {"-h",        handle_h,   false},
+    {"--help",    handle_h,   false},
+    {"-?",        handle_h,   false},
+    {"--ttl",     handle_ttl, true },
+    {"-t",        handle_ttl, true },
+    {NULL,        NULL,       false},
 };
 
 // Prints help message and returns `2`.
@@ -54,9 +57,9 @@ int
 help() {
     fprintf(stderr, "Usage: ./ft_ping [options] <destination>\n"
                     "Options:\n"
-                    "  -v              Verbose output\n"
-                    "  -h, -?          Show this help message\n"
-                    "  --ttl <value>   Set the IP Time to Live\n");
+                    "  (-v | --verbose)            Verbose output\n"
+                    "  (-h | -? | --help)          Show this help message\n"
+                    "  (-t | --ttl) <value>        Set the IP Time to Live\n");
     return 2;
 }
 
@@ -96,7 +99,7 @@ handle_extra_arg(Args *const args) {
 Result
 parse_cli_args(const int ac, char **av, Args *const args) {
     bool extra_arg = false;
-    args->cli.ttl = -1;
+    args->cli.t = -1;
 
     for (int idx = 1; idx < ac; ++idx) {
         if (av[idx][0] == '-') {

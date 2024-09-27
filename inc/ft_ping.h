@@ -20,7 +20,7 @@ typedef struct {
     struct {
         bool v;
         bool h;
-        int ttl;
+        int t;
         const char *dest;
     } cli;
 
@@ -35,6 +35,7 @@ typedef struct {
 
 typedef struct {
     int errs;
+    // sockfd needed to close it in the signal handler
     int sockfd;
     char dest[256];
     double rtt_min;
@@ -46,6 +47,7 @@ typedef struct {
     struct timeval start_time;
     double rtts[MAX_PINGS];
     char local_ip[INET6_ADDRSTRLEN];
+    // Pointer to the args struct needed to free it in the signal handler
     Args *args;
 } Stats;
 

@@ -26,8 +26,8 @@ set_socket_options(const Args *const args) {
         return err_fmt(2, "setsockopt (SO_SNDTIMEO): ", strerror(errno));
     }
 
-    if (args->cli.ttl != -1) {
-        if (setsockopt(g_stats.sockfd, IPPROTO_IP, IP_TTL, &args->cli.ttl, sizeof(args->cli.ttl)) == -1) {
+    if (args->cli.t != -1) {
+        if (setsockopt(g_stats.sockfd, IPPROTO_IP, IP_TTL, &args->cli.t, sizeof(args->cli.t)) == -1) {
             return err_fmt(2, "setsockopt (IP_TTL): ", strerror(errno));
         }
     }
