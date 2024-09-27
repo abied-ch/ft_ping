@@ -92,6 +92,7 @@ receive_packet(Args *const args, const int seq, const struct timeval *const trip
         }
 
         stats_display_rt(args, icmp, ip, rt_ms);
+        break;
     }
     return ok(NULL);
 }

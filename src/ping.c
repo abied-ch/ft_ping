@@ -102,7 +102,6 @@ loop(const Args *const args) {
         if (res.type == ERR) {
             err_unwrap(res);
         }
-
         if (!loop_condition(args, seq + 1)) {
             stats_display_final();
             break;
