@@ -1,11 +1,13 @@
 #include "ft_ping.h"
 #include "math.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
 double
-update_stats(const struct timeval *const trip_begin) {
+stats_update(const struct timeval *const trip_begin) {
     struct timeval trip_end;
 
     if (gettimeofday(&trip_end, NULL) == -1) {
@@ -31,7 +33,26 @@ update_stats(const struct timeval *const trip_begin) {
 }
 
 void
-display_rt_stats(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
+stats_display_final() {
+    if (g_stats.sent < 1) {
+        g_stats.sent = 1;
+    }
+    int loss = 100 - (g_stats.rcvd * 100) / g_stats.sent;
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    double tot_ms = (end.tv_sec - g_stats.start_time.tv_sec) * 1000.0 + (end.tv_usec - g_stats.start_time.tv_usec) / 1000.0;
+
+    printf("\n--- %s ping statistics ---\n%u packets transmitted, %u received", g_stats.dest, g_stats.sent, g_stats.rcvd);
+    if (g_stats.errs != 0) {
+        printf(", +%d errors", g_stats.errs);
+    }
+
+    printf(", %d%% packet loss time %dms\n", loss, (int)tot_ms);
+    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", g_stats.rtt_min, g_stats.rtt_avg, g_stats.rtt_max, g_stats.rtt_mdev);
+}
+
+void
+stats_display_rt(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms) {
     printf("%d bytes from %s: imcp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);
     if (args->cli.v) {
         printf("ident=%d ", icmp->icmp_id);

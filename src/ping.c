@@ -69,6 +69,15 @@ cleanup(const int exit_code, Args *const args) {
     return exit_code;
 }
 
+static bool
+loop_condition(const Args *const args, const int seq) {
+    if (args->cli.c != -1) {
+        return seq <= args->cli.c;
+    }
+
+    return true;
+}
+
 static Result
 loop(const Args *const args) {
     Result res;
@@ -76,7 +85,7 @@ loop(const Args *const args) {
     if (gettimeofday(&g_stats.start_time, NULL) == -1) {
         return err(strerror(errno));
     }
-    for (int seq = 1; seq; ++seq) {
+    for (int seq = 1; loop_condition(args, seq); ++seq) {
         init_icmp_header((Args *)args, seq);
 
         res = send_packet(args, (struct sockaddr_in *)&args->send_addr);

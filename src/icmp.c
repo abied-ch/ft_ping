@@ -86,12 +86,12 @@ receive_packet(Args *const args, const int seq, const struct timeval *const trip
             continue;
         }
 
-        double rt_ms = update_stats(trip_begin);
+        double rt_ms = stats_update(trip_begin);
         if ((int)rt_ms == -1) {
             return err(NULL);
         }
 
-        display_rt_stats(args, icmp, ip, rt_ms);
+        stats_display_rt(args, icmp, ip, rt_ms);
     }
     return ok(NULL);
 }

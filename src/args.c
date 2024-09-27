@@ -78,9 +78,11 @@ int
 help() {
     fprintf(stderr, "Usage: ./ft_ping [options] <destination>\n"
                     "Options:\n"
-                    "  (-v | --verbose)            Verbose output\n"
-                    "  (-h | -? | --help)          Show this help message\n"
-                    "  (-t | --ttl) <value>        Set the IP Time to Live\n");
+                    "  <destination>\n             DNS name or IP address\n"
+                    "  -c <count>                  stop after <count> replies\n"
+                    "  -h | -?                     print help and exit\n"
+                    "  -t                          define time to live\n"
+                    "  -v                          verbose output\n");
     return 2;
 }
 

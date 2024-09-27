@@ -98,8 +98,9 @@ Result receive_packet(Args *const args, const int seq, const struct timeval *con
 void sigint(const int sig);
 
 // stats.c
-double update_stats(const struct timeval *const trip_begin);
-void display_rt_stats(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms);
+double stats_update(const struct timeval *const trip_begin);
+void stats_display_rt(const Args *const args, const struct icmp *const icmp, const struct iphdr *const ip, const double ms);
+void stats_display_final();
 
 extern Stats g_stats;
 
