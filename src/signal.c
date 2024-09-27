@@ -15,8 +15,8 @@ sigint(const int sig) {
 
     stats_display_final();
 
-    close(g_stats.sockfd);
-    free(g_stats.args);
+    close(g_stats.alloc.sockfd);
+    free(g_stats.alloc.args);
 
     exit(EXIT_SUCCESS);
 }

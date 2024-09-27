@@ -17,6 +17,10 @@
 #define MAX_PINGS 1024
 
 typedef struct {
+    char buf[1024];
+    char packet[PAYLOAD_SIZE + sizeof(struct icmp)];
+    struct icmp *icmp_h;
+    char ip_str[INET_ADDRSTRLEN];
 
     struct {
         int t;
@@ -29,35 +33,34 @@ typedef struct {
         const char *dest;
     } cli;
 
-    struct sockaddr_in send_addr;
-    struct sockaddr_in recv_addr;
-    socklen_t recv_addr_len;
-    char buf[1024];
-    char packet[PAYLOAD_SIZE + sizeof(struct icmp)];
-    struct icmp *icmp_h;
-    char ip_str[INET_ADDRSTRLEN];
+    struct {
+        struct sockaddr_in send;
+        struct sockaddr_in recv;
+    } addr;
 } Args;
 
 typedef struct {
     int errs;
-    // sockfd needed to close it in the signal handler
-    int sockfd;
     char dest[256];
+    unsigned int sent;
+    unsigned int rcvd;
+    struct timespec start_time;
+    double rtts[MAX_PINGS];
+    char local_ip[INET6_ADDRSTRLEN];
 
     struct {
         double min;
         double avg;
         double max;
         double mdev;
-
     } rtt;
-    unsigned int sent;
-    unsigned int rcvd;
-    struct timespec start_time;
-    double rtts[MAX_PINGS];
-    char local_ip[INET6_ADDRSTRLEN];
-    // Pointer to the args struct needed to free it in the signal handler
-    Args *args;
+
+    struct {
+        // sockfd needed to be closed in the signal handler
+        // Pointer to the args struct needed to free it in the signal handler
+        int sockfd;
+        Args *args;
+    } alloc;
 } Stats;
 
 typedef enum {

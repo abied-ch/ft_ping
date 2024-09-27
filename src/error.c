@@ -63,8 +63,8 @@ recv_error(const struct icmp *const icmp, const int seq, const int recv_len) {
 // Performs full cleanup and returns `exit_code`.
 int
 cleanup(const int exit_code, Args *const args) {
-    if (g_stats.sockfd != -1) {
-        close(g_stats.sockfd);
+    if (g_stats.alloc.sockfd != -1) {
+        close(g_stats.alloc.sockfd);
     }
     if (args) {
         free(args);

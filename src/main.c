@@ -10,7 +10,7 @@ main(int ac, char **av) {
     res = ping_init(ac, av);
     if (res.type == ERR) {
         err_unwrap(res, false);
-        return cleanup(EXIT_FAILURE, NULL);
+        return cleanup(2, NULL);
     }
 
     Args *args = (Args *)res.val.val;
@@ -19,7 +19,7 @@ main(int ac, char **av) {
         return cleanup(help(), args);
     }
 
-    res = get_send_addr(args, &args->send_addr);
+    res = get_send_addr(args, &args->addr.send);
     if (res.type == ERR) {
         err_unwrap(res, false);
         return cleanup(EXIT_FAILURE, args);
@@ -28,14 +28,14 @@ main(int ac, char **av) {
     init_local_ip();
 
     if (args->cli.v) {
-        printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.sockfd);
+        printf("ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.alloc.sockfd);
         printf("ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args->cli.dest);
     }
 
     strncpy(g_stats.dest, args->cli.dest, sizeof(g_stats.dest));
     g_stats.dest[sizeof(g_stats.dest) - 1] = '\0';
 
-    g_stats.args = args;
+    g_stats.alloc.args = args;
 
     res = ping(args);
     if (res.type == ERR) {

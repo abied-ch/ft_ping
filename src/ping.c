@@ -84,7 +84,7 @@ loop(const Args *const args) {
 
         icmp_init_header((Args *)args, seq);
 
-        res = icmp_send_packet(args, (struct sockaddr_in *)&args->send_addr);
+        res = icmp_send_packet(args, (struct sockaddr_in *)&args->addr.send);
         if (res.type == ERR) {
             continue;
         }
@@ -112,7 +112,7 @@ Result
 ping(const Args *const args) {
     Result res;
 
-    if (!inet_ntop(AF_INET, &(args->send_addr.sin_addr), (char *)args->ip_str, INET_ADDRSTRLEN)) {
+    if (!inet_ntop(AF_INET, &(args->addr.send.sin_addr), (char *)args->ip_str, INET_ADDRSTRLEN)) {
         return err(strerror(errno));
     }
 
@@ -154,9 +154,7 @@ ping_init(const int ac, char **av) {
         return err(strerror(errno));
     }
 
-    args->recv_addr_len = sizeof(args->recv_addr);
-
-    res = socket_init(&g_stats.sockfd);
+    res = socket_init(&g_stats.alloc.sockfd);
     if (res.type == ERR) {
         return res;
     }
@@ -165,7 +163,7 @@ ping_init(const int ac, char **av) {
 
     if (signal(SIGINT, sigint) == SIG_ERR) {
         free(args);
-        close(g_stats.sockfd);
+        close(g_stats.alloc.sockfd);
         return err_fmt(2, "signal: ", strerror(errno));
     }
 

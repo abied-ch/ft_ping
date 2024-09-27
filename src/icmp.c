@@ -38,7 +38,7 @@ checksum(const void *const buffer, int len) {
     return ~sum;
 }
 
-// Initializes a ICMP header. Can be called on each iteration to refresh the `icmp` struct in `args`. 
+// Initializes a ICMP header. Can be called on each iteration to refresh the `icmp` struct in `args`.
 void
 icmp_init_header(Args *const args, const int seq) {
     args->icmp_h = (struct icmp *)args->packet;
@@ -60,7 +60,7 @@ icmp_init_header(Args *const args, const int seq) {
 // - `Result.type == ERR` on failure to send the packet
 Result
 icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr) {
-    if (sendto(g_stats.sockfd, args->packet, sizeof(args->packet), 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
+    if (sendto(g_stats.alloc.sockfd, args->packet, sizeof(args->packet), 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
         return err_fmt(2, "sendto: ", strerror(errno));
     }
     g_stats.sent++;
@@ -90,7 +90,8 @@ packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq)
 Result
 icmp_recv_packet(Args *const args, const int seq, const struct timespec *const trip_begin) {
     while (true) {
-        ssize_t recv_len = recvfrom(g_stats.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->recv_addr, &args->recv_addr_len);
+        socklen_t recv_addr_len = sizeof(args->addr.recv);
+        ssize_t recv_len = recvfrom(g_stats.alloc.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->addr.recv, &recv_addr_len);
 
         struct iphdr *ip = (struct iphdr *)args->buf;
         size_t iphdr_len = ip->ihl << 2;
