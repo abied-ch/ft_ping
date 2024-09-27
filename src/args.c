@@ -91,11 +91,15 @@ static const OptionEntry option_map[] = {
 // Prints help message and returns `2`.
 int
 help() {
-    fprintf(stderr, "Usage: ./ft_ping [options] <destination>\n"
+    fprintf(stderr, "\n"
+                    "Usage:\n"
+                    "  ./ft_ping [options] <destination>\n"
+                    "\n"
                     "Options:\n"
-                    "  <destination>\n             DNS name or IP address\n"
+                    "  <destination>               DNS name or IP address\n"
                     "  -c <count>                  stop after <count> replies\n"
                     "  -h | -?                     print help and exit\n"
+                    "  -i <interval>               seconds between sending each packet\n"
                     "  -t                          define time to live\n"
                     "  -v                          verbose output\n");
     return 2;
@@ -172,7 +176,7 @@ parse_cli_args(const int ac, char **av, Args *const args) {
         return handle_extra_arg(args);
     }
 
-    if (!args->cli.dest) {
+    if (!args->cli.h && !args->cli.dest) {
         return err("ft_ping: usage error: Destination address required");
     }
 
