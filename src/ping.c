@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -88,8 +89,19 @@ loop(const Args *const args) {
         if (res.type == ERR) {
             continue;
         }
+        fd_set readfds;
+        struct timeval tv;
 
-        res = icmp_recv_packet((Args *)args, seq, &trip_begin);
+        FD_ZERO(&readfds);
+        FD_SET(g_stats.alloc.sockfd, &readfds);
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        int ready = select(g_stats.alloc.sockfd + 1, &readfds, NULL, NULL, &tv);
+        if (ready > 0) {
+            res = icmp_recv_packet((Args *)args, seq, &trip_begin);
+        } else {
+            perror("select");
+        }
         if (res.type == ERR) {
             err_unwrap(res, args->cli.q);
         }
