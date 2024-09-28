@@ -165,7 +165,7 @@ icmp_recv_packet(Args *const args, const int seq, const struct timespec *const t
         }
 
         double rt_ms = stats_update(trip_begin);
-        if ((int)rt_ms == -1) {
+        if (rt_ms == -1) {
             return err(NULL);
         }
 
