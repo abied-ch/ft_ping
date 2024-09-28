@@ -1,6 +1,8 @@
 #include "ping.h"
 #include <bits/types/struct_iovec.h>
 #include <errno.h>
+#include <float.h>
+#include <math.h>
 #include <netdb.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -82,6 +84,8 @@ handle_i(Args *const args, const char *const arg) {
 
     if (*endptr != '\0') {
         return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
+    } else if (errno == ERANGE || strlen(arg) > sizeof("99999999999999999")) {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "' causes double overflow\n");
     }
 
     args->cli.i = DEFAULT_INTERVAL * val;
