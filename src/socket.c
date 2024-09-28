@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
 
@@ -40,5 +41,11 @@ socket_set_options(const Args *const args) {
             return err_fmt(3, "setsockopt (IP_TTL): ", strerror(errno), "\n");
         }
     }
+
+    int on = 1;
+    if (setsockopt(g_stats.alloc.sockfd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0) {
+        return err_fmt(3, "setsockopt (IP_HDRINCL): ", strerror(errno), "\n");
+    }
+
     return ok(NULL);
 }

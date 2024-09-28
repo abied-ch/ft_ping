@@ -14,12 +14,13 @@
 #define DEFAULT_INTERVAL 1.0
 #define PACKET_SIZE 64
 #define PAYLOAD_SIZE 64
-#define MAX_PINGS 1024
+#define MAX_PINGS 16192
 
 typedef struct {
     char buf[1024];
     char packet[PAYLOAD_SIZE + sizeof(struct icmp)];
     struct icmp *icmp_h;
+    struct iphdr *ip_h;
     char ip_str[INET_ADDRSTRLEN];
 
     struct {
@@ -106,6 +107,8 @@ void init_local_ip();
 void icmp_init_header(Args *const args, int seq);
 Result icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr);
 Result icmp_recv_packet(Args *const args, const int seq, const struct timespec *const trip_begin);
+
+void icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp);
 
 // signal.c
 void sigint(const int sig);

@@ -38,7 +38,7 @@ loop_condition(const Args *const args, const int seq) {
         return seq <= args->cli.c;
     }
 
-    return true;
+    return seq < MAX_PINGS;
 }
 
 // Calculates the time to sleep in order to maintain the same interval between each ping.
@@ -111,6 +111,9 @@ loop(const Args *const args) {
         res = fd_wait(args, trip_begin, seq);
         if (res.type == ERR) {
             err_unwrap(res, args->cli.q);
+            if (args->cli.v && res.val.err) {
+                icmp_ip_hdr_dump(args->ip_h, args->icmp_h);
+            }
         }
 
         res = adjust_sleep(trip_begin, args->cli.i);
