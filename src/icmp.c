@@ -14,11 +14,9 @@
 #include <time.h>
 #include <unistd.h>
 
+// This is ugly but it works perfectly and
 void
 icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp) {
-    char hdr_dump[500];
-    size_t len = 0;
-
     char src_ip[INET_ADDRSTRLEN];
     char dst_ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(ip->saddr), src_ip, INET_ADDRSTRLEN);
@@ -28,32 +26,28 @@ icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp) {
     int hdr_len = ip->ihl << 2;
     int n_u16_words = hdr_len / 2;
 
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "IP Hdr Dump:\n");
+    fprintf(stderr, "IP Hdr Dump:\n");
 
     for (int idx = 0; idx < n_u16_words; ++idx) {
-        len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %04x", ntohs(ip_hdr_u16[idx]));
+        fprintf(stderr, " %04x", ntohs(ip_hdr_u16[idx]));
     }
 
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "\nVr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst     Data\n");
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %d", ip->version);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %2d", n_u16_words / 2);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "  %02d", ip->tos);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %04d", hdr_len);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %04x", ntohs(ip->id));
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "%4d", (ntohs(ip->frag_off) >> 13) & 0x7); // upper 3 bits are the flags
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %04d", ntohs(ip->frag_off) & 0x1FFF);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %03d", ip->ttl);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %03d", ip->protocol);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %04x", ntohs(ip->check));
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, " %s", src_ip);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "  %s\n", dst_ip);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "ICMP: type %d, ", icmp->icmp_type);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "code %d, ", icmp->icmp_code);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "size %d, ", PACKET_SIZE);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "id 0x%04x, ", icmp->icmp_id);
-    len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "seq 0x%04x", icmp->icmp_seq);
-
-    fprintf(stderr, "%s\n", hdr_dump);
+    fprintf(stderr, "\nVr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst     Data\n");
+    fprintf(stderr, " %d", ip->version);
+    fprintf(stderr, " %2d", n_u16_words / 2);
+    fprintf(stderr, "  %02d", ip->tos);
+    fprintf(stderr, " %04d", hdr_len);
+    fprintf(stderr, " %04x", ntohs(ip->id));
+    fprintf(stderr, "%4d", (ntohs(ip->frag_off) >> 13) & 0x7); // upper 3 bits are the flags
+    fprintf(stderr, " %04d", ntohs(ip->frag_off) & 0x1FFF);
+    fprintf(stderr, " %03d", ip->ttl);
+    fprintf(stderr, " %03d", ip->protocol);
+    fprintf(stderr, " %04x", ntohs(ip->check));
+    fprintf(stderr, " %s", src_ip);
+    fprintf(stderr, "  %s\n", dst_ip);
+    fprintf(stderr, "ICMP: type %d, ", icmp->icmp_type);
+    fprintf(stderr, "code %d, size %d, ", icmp->icmp_code, PACKET_SIZE);
+    fprintf(stderr, "id 0x%04x, seq 0x%04x\n", icmp->icmp_id, icmp->icmp_seq);
 }
 
 // Computes IP checksum (16 bit one's complement sum), ensuring packet integrity before accepting.
