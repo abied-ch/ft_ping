@@ -14,7 +14,11 @@
 #include <time.h>
 #include <unistd.h>
 
-// This is ugly but it works perfectly and
+// This is ugly but it works perfectly and I do not feel bad.
+// .
+// Note:
+// `ntohs` converts u16 from network byte order (big endian -> most significant byte first)
+// to host byte order (little endian in most cases).
 void
 icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp) {
     char src_ip[INET_ADDRSTRLEN];
@@ -38,7 +42,9 @@ icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp) {
     fprintf(stderr, "  %02d", ip->tos);
     fprintf(stderr, " %04d", hdr_len);
     fprintf(stderr, " %04x", ntohs(ip->id));
-    fprintf(stderr, "%4d", (ntohs(ip->frag_off) >> 13) & 0x7); // upper 3 bits are the flags
+    // Move flags (top 3 bits) to the least significant position and isolate them with `& 00000111`
+    fprintf(stderr, "%4d", (ntohs(ip->frag_off) >> 13) & 0x7);
+    // `0x1FFF` -> 0001 1111 1111 1111 -> isolate lower 13 bits to get the fragment offset
     fprintf(stderr, " %04d", ntohs(ip->frag_off) & 0x1FFF);
     fprintf(stderr, " %03d", ip->ttl);
     fprintf(stderr, " %03d", ip->protocol);
