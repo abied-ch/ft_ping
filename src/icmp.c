@@ -15,10 +15,6 @@
 #include <unistd.h>
 
 // This is ugly but it works perfectly and I do not feel bad.
-// .
-// Note:
-// `ntohs` converts u16 from network byte order (big endian -> most significant byte first)
-// to host byte order (little endian in most cases).
 void
 icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp) {
     char src_ip[INET_ADDRSTRLEN];
@@ -135,7 +131,7 @@ icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr) {
 // - `false` if the packet matches
 // - `true` if one of `is_echo_reply`, `id_matches` or `seq_matches` is false
 static bool
-packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq) {
+icmp_packet_is_unexpected(struct icmp *icmp, struct icmp *icmp_header, const int seq) {
     const bool is_echo_reply = icmp->icmp_type == ICMP_ECHOREPLY;
     const bool id_matches = icmp->icmp_id == icmp_header->icmp_id;
     const bool seq_matches = icmp->icmp_seq == seq;
@@ -163,7 +159,7 @@ icmp_recv_packet(Args *const args, const int seq, const struct timespec *const t
             return recv_error(icmp, seq, recv_len);
         }
 
-        if (packet_is_unexpected(icmp, args->icmp_h, seq)) {
+        if (icmp_packet_is_unexpected(icmp, args->icmp_h, seq)) {
             continue;
         }
 

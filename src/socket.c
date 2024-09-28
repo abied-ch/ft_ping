@@ -24,17 +24,17 @@ socket_init(int *const sockfd) {
 // Also adds `IP_TTL` (IP time to live) if specified in the command line arguments.
 Result
 socket_set_options(const Args *const args) {
-    struct timeval timeout;
+    // struct timeval timeout;
 
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 100000;
-    if (setsockopt(g_stats.alloc.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-        return err_fmt(3, "setsockopt (SO_RCVTIMEO): ", strerror(errno), "\n");
-    }
+    // timeout.tv_sec = 0;
+    // timeout.tv_usec = 100000;
+    // if (setsockopt(g_stats.alloc.sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+    //     return err_fmt(3, "setsockopt (SO_RCVTIMEO): ", strerror(errno), "\n");
+    // }
 
-    if (setsockopt(g_stats.alloc.sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
-        return err_fmt(3, "setsockopt (SO_SNDTIMEO): ", strerror(errno), "\n");
-    }
+    // if (setsockopt(g_stats.alloc.sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
+    //     return err_fmt(3, "setsockopt (SO_SNDTIMEO): ", strerror(errno), "\n");
+    // }
 
     if (args->cli.t != -1) {
         if (setsockopt(g_stats.alloc.sockfd, IPPROTO_IP, IP_TTL, &args->cli.t, sizeof(args->cli.t)) == -1) {

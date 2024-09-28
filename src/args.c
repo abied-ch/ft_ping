@@ -121,8 +121,6 @@ handle_extra_arg(Args *const args) {
         char dest[n + 1];
         strncpy(dest, args->cli.dest, n);
         dest[n] = '\0';
-        free(args);
-
         return err_fmt(5, "ft_ping: ", dest, ": ", gai_strerror(e), "\n");
     } else {
         args->cli.h = true;
@@ -147,12 +145,10 @@ parse_cli_args(const int ac, char **av, Args *const args) {
                 entry++;
             }
             if (entry->option_s == NULL) {
-                free(args);
                 return err_fmt(3, "ft_ping: invalid option -- '", av[idx], "'\n");
             }
             if (entry->requires_arg) {
                 if (++idx >= ac) {
-                    free(args);
                     return err("ft_ping: option requires an argument -- 'ttl'\n");
                 }
             }
