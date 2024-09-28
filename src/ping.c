@@ -140,15 +140,21 @@ ping(const Args *const args) {
         return err_fmt(3, strerror(errno), "\n");
     }
 
-    fprintf(stdout, "PING %s (%s) %d data bytes\n", args->cli.dest, args->ip_str, PAYLOAD_SIZE);
+    memset((void *)args->packet + (sizeof(struct icmp)), 0x42, PAYLOAD_SIZE);
+    icmp_init_header((Args *)args, 0);
+
+    fprintf(stdout, "PING %s (%s) %d data bytes", args->cli.dest, args->ip_str, PAYLOAD_SIZE);
+
+    if (args->cli.v) {
+        fprintf(stdout, ", id 0x%04x = %d", ntohs(args->ip_h->id), args->ip_h->id);
+    }
+
+    fprintf(stdout, "\n");
 
     res = flood_check(args);
     if (res.type == ERR) {
         return res;
     }
-
-    memset((void *)args->packet + (sizeof(struct icmp)), 0x42, PAYLOAD_SIZE);
-    icmp_init_header((Args *)args, 0);
 
     res = socket_set_options(args);
     if (res.type == ERR) {

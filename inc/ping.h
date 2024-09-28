@@ -12,8 +12,8 @@
 #include <time.h>
 
 #define DEFAULT_INTERVAL 1.0
-#define PACKET_SIZE 64
-#define PAYLOAD_SIZE 64
+#define PACKET_SIZE 56
+#define PAYLOAD_SIZE 56
 #define MAX_PINGS 16192
 
 typedef struct {

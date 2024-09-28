@@ -84,14 +84,5 @@ stats_display_rt(const Args *const args, const struct icmp *const icmp, const st
     }
 
     fprintf(stdout, "%d bytes from %s: icmp_seq=%u ", PACKET_SIZE, args->ip_str, icmp->icmp_seq);
-    if (args->cli.v) {
-        fprintf(stdout, "ident=%d ", icmp->icmp_id);
-    }
-    if (ms < 1.0) {
-        fprintf(stdout, "ttl=%u time=%.3f ms\n", ip->ttl, ms);
-    } else if (ms < 10.0) {
-        fprintf(stdout, "ttl=%u time=%.2f ms\n", ip->ttl, ms);
-    } else {
-        fprintf(stdout, "ttl=%u time=%.1f ms\n", ip->ttl, ms);
-    }
+    fprintf(stdout, "ttl=%u time=%.3f ms\n", ip->ttl, ms);
 }

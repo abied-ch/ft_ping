@@ -53,7 +53,7 @@ icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp) {
     len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "id 0x%04x, ", icmp->icmp_id);
     len += snprintf(hdr_dump + len, sizeof(hdr_dump) - len, "seq 0x%04x", icmp->icmp_seq);
 
-    printf("%s\n", hdr_dump);
+    fprintf(stderr, "%s\n", hdr_dump);
 }
 
 // Computes IP checksum (16 bit one's complement sum), ensuring packet integrity before accepting.
