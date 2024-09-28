@@ -91,7 +91,7 @@ int help();
 
 // socket.c
 Result socket_init(int *const sockfd);
-Result socket_set_options(const Args *const args);
+Result socket_set_options();
 
 // result.c
 Result ok(void *val);
