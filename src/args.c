@@ -47,6 +47,20 @@ handle_D(Args *const args, const char *const arg) {
 }
 
 static Result
+handle_d(Args *const args, const char *const arg) {
+    (void)arg;
+    args->cli.d = true;
+    return ok(NULL);
+}
+
+static Result
+handle_V(Args *const args, const char *const arg) {
+    (void)arg;
+    args->cli.V = true;
+    return ok(NULL);
+}
+
+static Result
 handle_t(Args *const args, const char *const arg) {
     char *endptr;
     long val = strtol(arg, &endptr, 10);
@@ -132,6 +146,8 @@ static const OptionEntry option_map[] = {
     {"-i", "--interval",  handle_i, true },
     {"-w", "--timeout",   handle_w, true },
     {"-T", "--tos",       handle_T, true },
+    {"-d", "--debug",     handle_d, false},
+    {"-V", "--version",   handle_V, false},
     {NULL, NULL,          NULL,     false},
 };
 
@@ -162,7 +178,7 @@ parse_cli_args(const int ac, char **av, Args *const args) {
         }
     }
 
-    if (!args->cli.h && !args->cli.dest) {
+    if (!args->cli.V && !args->cli.h && !args->cli.dest) {
         return err("ft_ping: usage error: Destination address required");
     }
 

@@ -10,13 +10,18 @@ main(int ac, char **av) {
     res = ping_init(ac, av);
     if (res.type == ERR) {
         err_unwrap(res, false);
-        return cleanup(2, NULL);
+        return cleanup(EXIT_FAILURE, NULL);
     }
 
     Args *args = (Args *)res.val.val;
 
     if (args->cli.h) {
-        return cleanup(help(), args);
+        help();
+        return cleanup(res.type == ERR, args);
+    }
+    if (args->cli.V) {
+        version();
+        return cleanup(EXIT_SUCCESS, args);
     }
 
     res = get_send_addr(args, &args->addr.send);

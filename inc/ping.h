@@ -29,10 +29,12 @@ typedef struct {
         uint8_t T;
         int c;
         int w;
-        bool v;
+        bool d;
+        bool D;
         bool h;
         bool q;
-        bool D;
+        bool v;
+        bool V;
         double i;
         const char *dest;
     } cli;
@@ -91,10 +93,11 @@ Result flood_check(const Args *const args);
 Result recv_error(const struct icmp *const icmp, const int seq, const int recv_len);
 int cleanup(const int exit_code, Args *const args);
 int help();
+int version();
 
 // socket.c
 Result socket_init(int *const sockfd);
-Result socket_set_options();
+Result socket_set_options(const Args *const args);
 
 // result.c
 Result ok(void *val);

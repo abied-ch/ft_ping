@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
-// Prints help message and returns `2`.
+// Prints help message and returns `0`.
 int
 help() {
     fprintf(stderr, "\n"
@@ -16,14 +16,27 @@ help() {
                     "\n"
                     "Options:\n"
                     "  -c, --count <n>      stop after n replies\n"
+                    "  -d, --debug          set the SO_DEBUG socket option\n"
                     "  -D, --timestamp      print timestamps\n"
                     "  -h, -?, --help       print this help message\n"
                     "  -i, --interval <n>   wait n seconds between sending each packet\n"
                     "  -q, --quiet          quiet output\n"
                     "  -t, --ttl <n>        define time to live\n"
+                    "  -T, --tos <n>        set type of service (TOS) to n\n"
                     "  -v, --verbose        verbose output\n"
+                    "  -V, --verion         print program version\n"
                     "  -w, --timeout <n>    stop after n seconds\n");
-    return 2;
+    return 0;
+}
+
+int
+version() {
+    fprintf(stderr, "ft_ping (abied-ch 42 projects) 0.1\n"
+                    "This is free software: you are free to change and redistribute it.\n"
+                    "There is NO WARRANTY, I will not be held accountable for any stupid behavior.\n"
+                    "\n"
+                    "Written by Arthur Bied-Charreton.\n");
+    return 0;
 }
 
 // Returns e `Result` struct containing the appropriate message based on the error.

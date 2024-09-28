@@ -166,7 +166,7 @@ ping(const Args *const args) {
         return res;
     }
 
-    res = socket_set_options();
+    res = socket_set_options(args);
     if (res.type == ERR) {
         return res;
     }
