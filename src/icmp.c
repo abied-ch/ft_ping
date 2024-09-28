@@ -119,7 +119,7 @@ icmp_init_header(Args *const args, const int seq) {
 // - `Result.type == ERR` on failure to send the packet
 Result
 icmp_send_packet(const Args *const args, struct sockaddr_in *send_addr) {
-    if (sendto(g_stats.alloc.sockfd, args->packet, sizeof(args->packet), 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
+    if (sendto(args->sockfd, args->packet, sizeof(args->packet), 0, (struct sockaddr *)send_addr, sizeof(*send_addr)) <= 0) {
         return err_fmt(3, "sendto: ", strerror(errno), "\n");
     }
     g_stats.sent++;
@@ -151,7 +151,7 @@ icmp_recv_packet(Args *const args, const int seq, const struct timespec *const t
     while (true) {
         socklen_t recv_addr_len = sizeof(args->addr.recv);
 
-        ssize_t recv_len = recvfrom(g_stats.alloc.sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->addr.recv, &recv_addr_len);
+        ssize_t recv_len = recvfrom(args->sockfd, args->buf, sizeof(args->buf), 0, (struct sockaddr *)&args->addr.recv, &recv_addr_len);
 
         struct iphdr *ip = (struct iphdr *)args->buf;
         size_t iphdr_len = ip->ihl << 2;

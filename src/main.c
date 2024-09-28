@@ -33,7 +33,7 @@ main(int ac, char **av) {
     init_local_ip();
 
     if (args->cli.v) {
-        fprintf(stdout, "ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", g_stats.alloc.sockfd);
+        fprintf(stdout, "ft_ping: sockfd: %d (socktype SOCK_RAW), hints.ai_family: AF_INET\n\n", args->sockfd);
         fprintf(stdout, "ai-ai_family: AF_INET, ai->ai_canonname: '%s'\n", args->cli.dest);
     }
 

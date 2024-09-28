@@ -23,6 +23,7 @@ typedef struct {
     struct icmp *icmp_h;
     struct iphdr *ip_h;
     char ip_str[INET_ADDRSTRLEN];
+    int sockfd;
 
     struct {
         uint8_t t;

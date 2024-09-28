@@ -68,7 +68,7 @@ handle_t(Args *const args, const char *const arg) {
     if (*endptr != '\0') {
         return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
     } else if (val <= 0 || val > 255) {
-        return err_fmt(3, "ft_ping: invalid argument: '", arg, "': out of range: 0 <= value <= 255");
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "': out of range: 0 <= value <= 255\n");
     }
 
     args->cli.t = (int)val;

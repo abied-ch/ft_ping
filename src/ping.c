@@ -84,9 +84,9 @@ fd_wait(const Args *const args, struct timespec trip_begin, const int seq) {
     struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
 
     FD_ZERO(&readfds);
-    FD_SET(g_stats.alloc.sockfd, &readfds);
+    FD_SET(args->sockfd, &readfds);
 
-    int ready = select(g_stats.alloc.sockfd + 1, &readfds, NULL, NULL, &timeout);
+    int ready = select(args->sockfd + 1, &readfds, NULL, NULL, &timeout);
     if (ready < 0) {
         return err_fmt(3, "select: ", strerror(errno), "\n");
     } else if (ready == 0) {
@@ -194,7 +194,7 @@ ping_init(const int ac, char **av) {
         return err_fmt(3, "calloc: ", strerror(errno), "\n");
     }
 
-    res = socket_init(&g_stats.alloc.sockfd);
+    res = socket_init(&args->sockfd);
     if (res.type == ERR) {
         return res;
     }
@@ -202,15 +202,15 @@ ping_init(const int ac, char **av) {
     g_stats.rtt.min = __builtin_inff64();
 
     if (signal(SIGINT, sigint) == SIG_ERR) {
+        close(args->sockfd);
         free(args);
-        close(g_stats.alloc.sockfd);
         return err_fmt(3, "signal: ", strerror(errno), "\n");
     }
 
     res = parse_cli_args(ac, av, args);
     if (res.type == ERR) {
+        close(args->sockfd);
         free(args);
-        close(g_stats.alloc.sockfd);
         return res;
     }
 
