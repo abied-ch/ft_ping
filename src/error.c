@@ -25,7 +25,9 @@ help() {
                     "  -T, --tos <n>        set type of service (TOS) to n\n"
                     "  -v, --verbose        verbose output\n"
                     "  -V, --verion         print program version\n"
-                    "  -w, --timeout <n>    stop after n seconds\n");
+                    "  -w, --timeout <n>    stop after n seconds\n"
+                    "\n"
+                    "Report bugs to <abied-ch@student.42vienna.com>\n");
     return 0;
 }
 
