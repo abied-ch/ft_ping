@@ -20,7 +20,7 @@ socket_init(int *const sockfd) {
     return ok(NULL);
 }
 
-// Adds `IP_HDRINCL` to the socket options to prevent the kernel from creating the IP header.
+// Adds `IP_HDRINCL` to the socket options to prevent the kernel from creating the IP header
 Result
 socket_set_options() {
     int on = 1;

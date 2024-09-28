@@ -2,7 +2,6 @@
 #include <bits/types/struct_iovec.h>
 #include <errno.h>
 #include <float.h>
-#include <math.h>
 #include <netdb.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -70,7 +69,7 @@ handle_c(Args *const args, const char *const arg) {
     if (*endptr != '\0') {
         return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
     } else if (val < 1 || errno == ERANGE) {
-        return err_fmt(3, "ft_ping: invalid argument: '", arg, "' out of range: : 1 <= value <= 9223372036854775807\n");
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "' out of range: 1 <= value <= 9223372036854775807\n");
     }
 
     args->cli.c = (int)val;
@@ -92,6 +91,21 @@ handle_i(Args *const args, const char *const arg) {
     return ok(NULL);
 }
 
+static Result
+handle_w(Args *const args, const char *const arg) {
+    char *endptr;
+    int val = strtol(arg, &endptr, 10);
+
+    if (*endptr != '\0') {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
+    } else if (errno == ERANGE || val < 1 || val > INT32_MAX) {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "' out of range: 1 <= value <= 2147483647\n");
+    }
+
+    args->cli.w = val;
+    return ok(NULL);
+}
+
 static const OptionEntry option_map[] = {
     {"-v", "--verbose",   handle_v, false},
     {"-h", "--help",      handle_h, false},
@@ -101,6 +115,7 @@ static const OptionEntry option_map[] = {
     {"-t", "--ttl",       handle_t, true },
     {"-c", "--count",     handle_c, true },
     {"-i", "--interval",  handle_i, true },
+    {"-w", "--timeout",   handle_w, true },
     {NULL, NULL,          NULL,     false},
 };
 
@@ -138,8 +153,6 @@ handle_extra_arg(Args *const args) {
 Result
 parse_cli_args(const int ac, char **av, Args *const args) {
     bool extra_arg = false;
-    args->cli.t = -1;
-    args->cli.c = -1;
     args->cli.i = DEFAULT_INTERVAL;
 
     for (int idx = 1; idx < ac; ++idx) {

@@ -92,7 +92,8 @@ icmp_init_header(Args *const args, const int seq) {
     args->ip_h->tot_len = htons(PACKET_SIZE);
     args->ip_h->id = htons(getpid());
     args->ip_h->frag_off = 0;
-    args->ip_h->ttl = args->cli.t == -1 ? 64 : args->cli.t;
+    args->ip_h->ttl = args->cli.t == 0 ? 64 : args->cli.t;
+
     args->ip_h->protocol = IPPROTO_ICMP;
     args->ip_h->saddr = inet_addr(g_stats.local_ip);
     args->ip_h->daddr = inet_addr(args->ip_str);

@@ -26,6 +26,7 @@ typedef struct {
     struct {
         int t;
         int c;
+        int w;
         bool v;
         bool h;
         bool q;

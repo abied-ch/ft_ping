@@ -34,8 +34,18 @@ Stats g_stats = {0};
 // extra function for it.
 static bool
 loop_condition(const Args *const args, const int seq) {
-    if (args->cli.c != -1) {
+    if (args->cli.c != 0) {
         return seq <= args->cli.c;
+    }
+
+    if (args->cli.w != 0) {
+        struct timespec end_time = {0};
+        if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
+            return false;
+        }
+        if (end_time.tv_sec - args->cli.w >= g_stats.start_time.tv_sec) {
+            return false;
+        }
     }
 
     return seq < MAX_PINGS;
