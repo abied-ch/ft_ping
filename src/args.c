@@ -119,40 +119,8 @@ static const OptionEntry option_map[] = {
     {NULL, NULL,          NULL,     false},
 };
 
-// ping handles extra arguments weirdly:
-// - If multiple destination hosts are provided, only the last one will be stored, then:
-//
-// - If it is resolvable:
-//      -> Print help message
-// - Else:
-//      -> Print error message alone
-static Result
-handle_extra_arg(Args *const args) {
-    struct addrinfo hints, *res;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_RAW;
-
-    int e = getaddrinfo(args->cli.dest, NULL, &hints, &res);
-    if (e != 0) {
-
-        size_t n = strlen(args->cli.dest);
-        char dest[n + 1];
-        strncpy(dest, args->cli.dest, n);
-        dest[n] = '\0';
-        return err_fmt(5, "ft_ping: ", dest, ": ", gai_strerror(e), "\n");
-    } else {
-        args->cli.h = true;
-        freeaddrinfo(res);
-        return ok(args);
-    }
-    freeaddrinfo(res);
-    return ok(args);
-}
-
 Result
 parse_cli_args(const int ac, char **av, Args *const args) {
-    bool extra_arg = false;
     args->cli.i = DEFAULT_INTERVAL;
 
     for (int idx = 1; idx < ac; ++idx) {
@@ -173,15 +141,9 @@ parse_cli_args(const int ac, char **av, Args *const args) {
             if (res.type == ERR) {
                 return res;
             }
-        } else {
-            if (args->cli.dest != NULL) {
-                extra_arg = true;
-            }
+        } else if (args->cli.dest == NULL) {
             args->cli.dest = av[idx];
         }
-    }
-    if (extra_arg) {
-        return handle_extra_arg(args);
     }
 
     if (!args->cli.h && !args->cli.dest) {
