@@ -11,18 +11,18 @@
 int
 help() {
     fprintf(stderr, "\n"
-                    "Usage:\n"
-                    "  ./ft_ping [options] <destination>\n"
+                    "Usage: ./ft_ping [OPTION...] HOST\n"
+                    "Send ICMP ECHO_REQUEST packets to network hosts.\n"
                     "\n"
                     "Options:\n"
-                    "  <destination>      DNS name or IP address\n"
-                    "  -c <count>         stop after <count> replies\n"
-                    "  -D                 print timestamps\n"
-                    "  -h | -?            print help and exit\n"
-                    "  -i <interval>      seconds between sending each packet\n"
-                    "  -q                 quiet output\n"
-                    "  -t                 define time to live\n"
-                    "  -v                 verbose output\n");
+                    "  -c, --count <n>      stop after n replies\n"
+                    "  -D, --timestamp      print timestamps\n"
+                    "  -h, -?, --help       print this help message\n"
+                    "  -i, --interval <n>   wait n seconds between sending each packet\n"
+                    "  -q, --quiet          quiet output\n"
+                    "  -t, --ttl <n>        define time to live\n"
+                    "  -v, --verbose        verbose output\n"
+                    "  -w, --timeout <n>    stop after n seconds\n");
     return 2;
 }
 

@@ -106,6 +106,21 @@ handle_w(Args *const args, const char *const arg) {
     return ok(NULL);
 }
 
+static Result
+handle_T(Args *const args, const char *const arg) {
+    char *endptr;
+    int val = strtol(arg, &endptr, 10);
+
+    if (*endptr != '\0') {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "'\n");
+    } else if (errno == ERANGE || val < 0 || val > 255) {
+        return err_fmt(3, "ft_ping: invalid argument: '", arg, "' out of range: 0 <= value <= 255\n");
+    }
+
+    args->cli.T = val;
+    return ok(NULL);
+}
+
 static const OptionEntry option_map[] = {
     {"-v", "--verbose",   handle_v, false},
     {"-h", "--help",      handle_h, false},
@@ -116,6 +131,7 @@ static const OptionEntry option_map[] = {
     {"-c", "--count",     handle_c, true },
     {"-i", "--interval",  handle_i, true },
     {"-w", "--timeout",   handle_w, true },
+    {"-T", "--tos",       handle_T, true },
     {NULL, NULL,          NULL,     false},
 };
 

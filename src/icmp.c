@@ -35,7 +35,7 @@ icmp_ip_hdr_dump(const struct iphdr *const ip, const struct icmp *icmp) {
     fprintf(stderr, "\nVr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst     Data\n");
     fprintf(stderr, " %d", ip->version);
     fprintf(stderr, " %2d", n_u16_words / 2);
-    fprintf(stderr, "  %02d", ip->tos);
+    fprintf(stderr, " %03d", ip->tos);
     fprintf(stderr, " %04d", hdr_len);
     fprintf(stderr, " %04x", ntohs(ip->id));
     // Move flags (top 3 bits) to the least significant position and isolate them with `& 00000111`
@@ -88,7 +88,7 @@ icmp_init_header(Args *const args, const int seq) {
 
     args->ip_h->ihl = 5;
     args->ip_h->version = 4;
-    args->ip_h->tos = 0;
+    args->ip_h->tos = args->cli.T;
     args->ip_h->tot_len = htons(PACKET_SIZE);
     args->ip_h->id = htons(getpid());
     args->ip_h->frag_off = 0;

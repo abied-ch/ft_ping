@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netinet/ip_icmp.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -24,7 +25,8 @@ typedef struct {
     char ip_str[INET_ADDRSTRLEN];
 
     struct {
-        int t;
+        uint8_t t;
+        uint8_t T;
         int c;
         int w;
         bool v;
