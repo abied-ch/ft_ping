@@ -106,7 +106,7 @@ loop(const Args *const args) {
 
     for (int seq = 1; seq; ++seq) {
         struct timespec trip_begin;
-        if (clock_gettime(CLOCK_MONOTONIC, &trip_begin) == 1) {
+        if (clock_gettime(CLOCK_MONOTONIC, &trip_begin) == -1) {
             return err_fmt(3, "clock_gettime: ", strerror(errno), "\n");
         }
 
@@ -115,7 +115,7 @@ loop(const Args *const args) {
         res = icmp_send_packet(args, (struct sockaddr_in *)&args->addr.send);
         if (res.type == ERR) {
             err_unwrap(res, args->cli.q);
-            continue;
+            break;
         }
 
         res = fd_wait(args, trip_begin, seq);
@@ -196,6 +196,7 @@ ping_init(const int ac, char **av) {
 
     res = socket_init(&args->sockfd);
     if (res.type == ERR) {
+        free(args);
         return res;
     }
 

@@ -11,3 +11,4 @@ ft_ping
 
 obj/
 libft.a
+tests/overrides/out
